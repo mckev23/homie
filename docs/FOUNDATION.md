@@ -45,7 +45,9 @@ The mobile app initializes Supabase from the public project URL and anon key. Th
 
 ### Database foundation
 
-A minimal `profiles` table has been created and is the only durable table in this phase. It stores display information for each authenticated user and does not duplicate authentication credentials or store passwords.
+A minimal `profiles` table has been created. It stores display information for each authenticated user and does not duplicate authentication credentials or store passwords.
+
+A `homes` table migration (`supabase/migrations/20260826180000_create_homes_table.sql`) has been written but **not yet applied** — no Supabase MCP connection was available in the session that authored it. It must be applied via `mcp__supabase__apply_migration` (or pasted into the Supabase SQL editor as a one-time stopgap) before the "add a home" feature can be built against it. See `## New Tables` in the migration file for the schema and rationale.
 
 | Column | Type | Description |
 |---|---|---|
@@ -141,7 +143,26 @@ Expo Go is the fastest path for JavaScript-only development. A development build
 
 `app.json` identifies the app as Homie with the `homie` URL scheme, portrait orientation, iOS bundle identifier `com.homie.app`, and Android package `com.homie.app`. These identifiers should be treated as permanent once a store build exists.
 
-`eas.json` includes development, preview, and production profiles. Before building outside Bolt, use an Expo account and EAS CLI, then run Expo's project diagnostics. EAS manages native signing credentials during the build flow.
+`assets/images/icon.png` (1024×1024) and `assets/images/favicon.png` are placeholder marks in the brand teal (`colors.primary`) with a simple house glyph, generated to unblock builds. They satisfy `app.json`'s asset requirements but should be replaced with final brand artwork before any App Store or Play Store submission — a placeholder icon is acceptable for internal/dev builds, not for public release.
+
+`eas.json` includes development, preview, and production build profiles, each with an explicit `"environment"` field of the same name. This maps each profile to an EAS Environment Variables scope so development/preview and production builds can point at different Supabase projects without editing `eas.json` or committing project-specific values. Set the actual values with `eas env:create` (or the EAS dashboard) per environment — see the Supabase connection steps below. Before building outside Bolt, use an Expo account and EAS CLI, then run Expo's project diagnostics. EAS manages native signing credentials during the build flow.
+
+## Connecting Supabase (dev and production)
+
+Two separate Supabase projects are required — one for development, one for production — so dev and prod data are never mixed (a non-negotiable per `CLAUDE.md`).
+
+For each project:
+
+1. Create the project in the Supabase dashboard.
+2. Copy its Project URL and anon/public key (Project Settings → API). Never copy the service-role key into anything client-facing.
+3. Replay the migrations in `supabase/migrations/` in order against that project (via the Supabase MCP `apply_migration` tool when connected, or the SQL editor as a one-time stopgap) so both projects have identical schema and RLS.
+
+Then wire the values in:
+
+- **Local development**: copy `.env.example` to `.env` and fill in the dev project's URL/anon key. `.env` is gitignored and never committed.
+- **EAS builds**: run `eas env:create` for each of the `development`, `preview`, and `production` environments with `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` — development/preview pointing at the dev project, production at the prod project. This keeps both values out of committed files while still being available at build time.
+
+To let a future Claude Code session run migrations directly (recommended), connect the Supabase MCP connector for this GitHub-connected environment/org — until then, migrations are written to `supabase/migrations/` but must be applied manually.
 
 ## iOS path
 
@@ -168,9 +189,12 @@ A local Git repository has been initialized with a baseline commit containing th
 
 ## Known limitations
 
-- Authentication and account creation are not implemented (architecture is prepared).
-- The `profiles` table exists but no auth UI is built yet to create or populate it.
-- The Supabase client does not yet persist sessions (will be enabled with the auth feature).
+- The `homes` table migration exists in the repo but has not been applied to any Supabase project yet (no MCP connection when it was written).
+- No Supabase project connection has been verified from within a Claude Code session — confirm a project exists, note whether email confirmation is on/off, and connect the Supabase MCP connector if direct migration application is wanted.
+- Dev and production Supabase projects are not yet provisioned or wired into EAS environments — see "Connecting Supabase" above.
+- App icon and favicon are placeholder brand marks, not final artwork — fine for dev/internal builds, must be replaced before store submission.
+- No crash/error reporting is wired up; `src/logger.ts` only logs in `__DEV__`.
+- No CI (lint/typecheck) runs on push.
 - The browser preview cannot validate native iPhone behavior.
 - A physical-device check has not been performed by this environment.
 - App store signing, TestFlight, and Play Console setup require the owner's developer accounts.
