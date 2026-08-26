@@ -43,11 +43,18 @@ The first route is a welcome screen. It links to an authentication placeholder a
 
 The mobile app initializes Supabase from the public project URL and anon key. The anon key is client-safe when protected by correct RLS policies. A service-role key must never be included in the mobile app. All signed-in data features must use Supabase Auth and owner-scoped RLS policies together in the same feature.
 
+**Two live projects exist and are schema-identical** (verified via the Supabase MCP connector):
+
+| Environment | Project name | Project ref |
+|---|---|---|
+| Development | Homie Dev | `mhdlhmelgdxdovpwigny` |
+| Production | Homie Production | `eqhwvpjscarwhfstecjv` |
+
+Both are on Postgres 17. All five migrations in `supabase/migrations/` have been applied to both via `mcp__supabase__apply_migration`, and the Supabase security advisor is clean on both except one platform-internal function (`public.rls_auto_enable`) that Homie's migrations did not create and should not modify.
+
 ### Database foundation
 
-A minimal `profiles` table has been created. It stores display information for each authenticated user and does not duplicate authentication credentials or store passwords.
-
-A `homes` table migration (`supabase/migrations/20260826180000_create_homes_table.sql`) has been written but **not yet applied** — no Supabase MCP connection was available in the session that authored it. It must be applied via `mcp__supabase__apply_migration` (or pasted into the Supabase SQL editor as a one-time stopgap) before the "add a home" feature can be built against it. See `## New Tables` in the migration file for the schema and rationale.
+A minimal `profiles` table stores display information for each authenticated user and does not duplicate authentication credentials or store passwords.
 
 | Column | Type | Description |
 |---|---|---|
@@ -56,26 +63,34 @@ A `homes` table migration (`supabase/migrations/20260826180000_create_homes_tabl
 | `created_at` | timestamptz | Defaults to `now()`. |
 | `updated_at` | timestamptz | Defaults to `now()`. Auto-updated via trigger. |
 
+A `homes` table (schema in `supabase/migrations/20260826180000_create_homes_table.sql`) is live on both projects, empty, ready for the "add a home" feature:
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | uuid, PK | `gen_random_uuid()`. |
+| `user_id` | uuid | Owner. FK to `auth.users(id)` with `ON DELETE CASCADE`. |
+| `nickname` | text | Defaults to `'My Home'`. |
+| `address` | text, nullable | Single free-text line — low friction over structured fields. |
+| `postal_code` | text, nullable | For future climate-aware guidance. |
+| `year_built` | integer, nullable | For future age-based maintenance guidance. |
+| `created_at` / `updated_at` | timestamptz | Same pattern as `profiles`. |
+
 ### Row Level Security
 
-RLS is enabled on `profiles`. Four owner-scoped policies (one per CRUD verb) ensure each authenticated user can only access their own profile row:
+RLS is enabled on both `profiles` and `homes`. Four owner-scoped policies each (one per CRUD verb):
 
-- `select_own_profile` — `USING (auth.uid() = id)`
-- `insert_own_profile` — `WITH CHECK (auth.uid() = id)`
-- `update_own_profile` — `USING (auth.uid() = id) WITH CHECK (auth.uid() = id)`
-- `delete_own_profile` — `USING (auth.uid() = id)`
+- `profiles`: `auth.uid() = id`
+- `homes`: `auth.uid() = user_id`
 
-All policies are scoped `TO authenticated`. No public or anon access. No broad `USING(true)` policies.
+All policies are scoped `TO authenticated`. No public or anon access. No broad `USING(true)` policies. A follow-up migration additionally revoked public/anon/authenticated `EXECUTE` on `handle_new_user()` — the security advisor flagged it as callable as an RPC endpoint; it's a `SECURITY DEFINER` trigger function that would error if invoked outside trigger context, but there was no reason to leave that surface open.
 
-### Future relationship: User → Profile → Home
-
-The intended data relationship for the next feature sequence is:
+### Relationship: User → Profile → Home
 
 ```
-auth.users (Supabase Auth) → profiles (current) → homes (future)
+auth.users (Supabase Auth) → profiles → homes
 ```
 
-The `homes` table will be created when the home creation feature is built. It will reference `auth.users(id)` and have its own owner-scoped RLS policies. Maintenance, project, and other product tables will follow the same pattern.
+Maintenance and project tables will follow the same owner-scoped pattern once the "add a home" feature is built and validated.
 
 ### Supabase client configuration
 
@@ -149,20 +164,12 @@ Expo Go is the fastest path for JavaScript-only development. A development build
 
 ## Connecting Supabase (dev and production)
 
-Two separate Supabase projects are required — one for development, one for production — so dev and prod data are never mixed (a non-negotiable per `CLAUDE.md`).
+**Status: connected.** Two Supabase projects exist — `Homie Dev` (`mhdlhmelgdxdovpwigny`) and `Homie Production` (`eqhwvpjscarwhfstecjv`) — and both have the full migration history applied and verified (see Supabase architecture above). A "Supabase" connector is authorized for this Claude Code account/org, so future sessions can run `apply_migration`, `list_tables`, `get_advisors`, etc. directly against either project by its ref.
 
-For each project:
+Remaining wiring, not yet done:
 
-1. Create the project in the Supabase dashboard.
-2. Copy its Project URL and anon/public key (Project Settings → API). Never copy the service-role key into anything client-facing.
-3. Replay the migrations in `supabase/migrations/` in order against that project (via the Supabase MCP `apply_migration` tool when connected, or the SQL editor as a one-time stopgap) so both projects have identical schema and RLS.
-
-Then wire the values in:
-
-- **Local development**: copy `.env.example` to `.env` and fill in the dev project's URL/anon key. `.env` is gitignored and never committed.
-- **EAS builds**: run `eas env:create` for each of the `development`, `preview`, and `production` environments with `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` — development/preview pointing at the dev project, production at the prod project. This keeps both values out of committed files while still being available at build time.
-
-To let a future Claude Code session run migrations directly (recommended), connect the Supabase MCP connector for this GitHub-connected environment/org — until then, migrations are written to `supabase/migrations/` but must be applied manually.
+- **Local development**: copy `.env.example` to `.env` and fill in the **dev** project's URL/anon key (Project Settings → API, or `get_project_url` / `get_publishable_keys` via the MCP connector). `.env` is gitignored and never committed. Never point local development at the production project.
+- **EAS builds**: run `eas env:create` for each of the `development`, `preview`, and `production` environments (these map to `eas.json`'s `"environment"` fields) with `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` — development/preview pointing at the dev project, production at the prod project. This is a local/CI action requiring an authenticated `eas` CLI session; it hasn't been run yet.
 
 ## iOS path
 
@@ -189,12 +196,12 @@ A local Git repository has been initialized with a baseline commit containing th
 
 ## Known limitations
 
-- The `homes` table migration exists in the repo but has not been applied to any Supabase project yet (no MCP connection when it was written).
-- No Supabase project connection has been verified from within a Claude Code session — confirm a project exists, note whether email confirmation is on/off, and connect the Supabase MCP connector if direct migration application is wanted.
-- Dev and production Supabase projects are not yet provisioned or wired into EAS environments — see "Connecting Supabase" above.
+- Whether email confirmation is on/off has not been checked for either project — the MCP connector's tools don't expose Auth config directly; confirm in each project's dashboard under Authentication → Providers → Email before relying on the `needsConfirmation` signup path.
+- `eas env:create` has not been run — EAS builds don't yet have Supabase credentials wired in (see "Connecting Supabase" above). Local `.env` also still needs to be created per-machine (gitignored, never committed).
 - App icon and favicon are placeholder brand marks, not final artwork — fine for dev/internal builds, must be replaced before store submission.
 - No crash/error reporting is wired up; `src/logger.ts` only logs in `__DEV__`.
 - No CI (lint/typecheck) runs on push.
+- `npm audit` reports vulnerabilities, all transitive through Expo's native-build tooling (`xcode`/`@expo/config-plugins`, used only by `prebuild`/EAS builds, not shipped in the app bundle). Fixing requires a breaking Expo major-version bump — deliberately deferred, not a silent risk.
 - The browser preview cannot validate native iPhone behavior.
 - A physical-device check has not been performed by this environment.
 - App store signing, TestFlight, and Play Console setup require the owner's developer accounts.
