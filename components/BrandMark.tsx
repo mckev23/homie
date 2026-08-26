@@ -1,30 +1,23 @@
-import { House } from 'lucide-react-native';
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, typography } from '@/src/theme';
+import { Image, StyleSheet, View } from 'react-native';
 
-export function BrandMark() {
+const LOGO = require('@/assets/images/homie-logo.png');
+const LOGO_ASPECT_RATIO = 838 / 752;
+
+type BrandMarkProps = { width?: number };
+
+export function BrandMark({ width = 168 }: BrandMarkProps) {
   return (
     <View style={styles.container}>
-      <View style={styles.iconWrap}>
-        <House color={colors.secondary} size={24} strokeWidth={2} />
-      </View>
-      <Text style={styles.wordmark}>
-        homi<Text style={styles.accent}>e</Text>
-      </Text>
+      <Image
+        source={LOGO}
+        style={{ width, height: width / LOGO_ASPECT_RATIO }}
+        resizeMode="contain"
+        accessibilityLabel="Homie"
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { alignItems: 'center', gap: 6 },
-  iconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  wordmark: { ...typography.heading, color: colors.secondary, letterSpacing: 1 },
-  accent: { color: colors.primary },
+  container: { alignItems: 'center' },
 });
