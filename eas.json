@@ -10,7 +10,10 @@
     },
     "preview": {
       "distribution": "internal",
-      "environment": "preview"
+      "environment": "preview",
+      "ios": {
+        "simulator": false
+      }
     },
     "production": {
       "environment": "production"
