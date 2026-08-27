@@ -68,12 +68,15 @@ Every place "Homie"/"homie" appears in the codebase as of this audit, grouped by
 - Supabase project **display names** ("Homie Dev", "Homie Production") — purely cosmetic dashboard labels. The actual project refs (`mhdlhmelgdxdovpwigny`, `eqhwvpjscarwhfstecjv`) and URLs are random strings, never human-readable/branded, and cannot be renamed regardless — so there's no functional reason to recreate the projects, only a cosmetic dashboard rename if desired.
 - GitHub repo name `mckev23/homie` — GitHub auto-redirects the old URL after a rename, but docs (`FOUNDATION.md`) hardcode the current name/URL and would need updating; do deliberately, not casually.
 
-### Expensive / time-sensitive — flagged per your request
+### Expensive / time-sensitive — resolved
 
-- **iOS/Android bundle identifiers** (`com.homie.app` in `app.json`) — **the one to decide first.** No EAS project has been linked yet and no build has been submitted to App Store Connect or Play Console. Once a build is submitted under this identifier, it is effectively permanent — changing it later means a brand-new app listing, losing any TestFlight testers/history. This is the ideal, low-cost moment to change it, before the EAS build pipeline (currently being set up) goes further.
-- **Deep link URL scheme** (`"scheme": "homie"` in `app.json`) — used for email verification and password-reset redirect links. Low real risk today (pre-launch, no users with in-flight links), but same category as the bundle ID: better locked in before wider testing.
-- **`app.json` `slug`** (currently `"homie"`) — determines the EAS project's URL slug (`expo.dev/@account/<slug>`) the first time `eas init` runs. **Time-sensitive**: `eas init` has not been run yet, so changing this now is free. Once a project exists under a slug, renaming it later is possible but adds friction.
+These three were resolved together, before `eas init` was ever run, by switching to a **brand-neutral internal codename** instead of either "Homie" or "hōm" — so a future brand name change (this one, or any later one) never touches them again:
+
+- **iOS/Android bundle identifiers**: `com.homie.app` → **`com.mckev23.homeapp`**. `com.mckev23` is the developer's own identity (permanent, unrelated to the product name); `homeapp` is a generic category codename, not a brand name.
+- **Deep link URL scheme**: `"homie"` → **`"homeapp"`**.
+- **`app.json` `slug`**: `"homie"` → **`"homeapp"`** (free to change — `eas init` had not been run yet, so no EAS project existed under the old slug).
+
+`app.json`'s display `name` (still `"Homie"`, shown under the icon and in store listings) was deliberately left alone — that's the actual consumer-facing rebrand cutover, not yet requested. `package.json`'s `name` was also updated to `"homeapp"` for consistency (it was still `"bolt-expo-starter"`, a leftover template name, not even "Homie"-branded).
+
 - **Supabase project ref/URL** — cannot be renamed at all, by design (Supabase doesn't support this). Not a real issue since it was never human-readable/branded in the first place — only relevant if you want a custom domain later (a paid Supabase feature, out of scope).
-- **App Store / Play Store listing name** — actually cheap, not expensive: both stores allow renaming a live listing without losing reviews or rankings. Flagging this mainly to say it's *not* in the same risk category as the bundle ID.
-
-**Recommendation**: decide the bundle identifier, deep link scheme, and `app.json` slug together, before running `eas init` — all three are cheap right now and expensive later. Everything else can change on your timeline.
+- **App Store / Play Store listing name** — actually cheap, not expensive: both stores allow renaming a live listing without losing reviews or rankings. Noted mainly to say it's *not* in the same risk category as the bundle ID.

@@ -156,7 +156,7 @@ Expo Go is the fastest path for JavaScript-only development. A development build
 
 ## Expo and EAS
 
-`app.json` identifies the app as Homie with the `homie` URL scheme, portrait orientation, iOS bundle identifier `com.homie.app`, and Android package `com.homie.app`. These identifiers should be treated as permanent once a store build exists.
+`app.json`'s display `name` is "Homie" (consumer-facing, changes with the rebrand rollout — not yet done). Its technical identifiers — `slug` (`homeapp`), URL `scheme` (`homeapp`), iOS bundle identifier and Android package (`com.mckev23.homeapp`) — were deliberately chosen as a brand-neutral internal codename, decoupled from both "Homie" and "hōm", specifically so a future brand name change never touches them again. `com.mckev23` uses the developer's own identity rather than either product name, for the same reason. These identifiers should be treated as permanent once a store build exists.
 
 `assets/images/icon.png` (1024×1024) and `assets/images/favicon.png` are placeholder marks in the brand teal (`colors.primary`) with a simple house glyph, generated to unblock builds. They satisfy `app.json`'s asset requirements but should be replaced with final brand artwork before any App Store or Play Store submission — a placeholder icon is acceptable for internal/dev builds, not for public release.
 

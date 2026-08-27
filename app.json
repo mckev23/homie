@@ -1,19 +1,19 @@
 {
   "expo": {
     "name": "Homie",
-    "slug": "homie",
+    "slug": "homeapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "homie",
+    "scheme": "homeapp",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.homie.app"
+      "bundleIdentifier": "com.mckev23.homeapp"
     },
     "android": {
-      "package": "com.homie.app"
+      "package": "com.mckev23.homeapp"
     },
     "web": {
       "bundler": "metro",
