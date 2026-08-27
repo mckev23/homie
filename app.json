@@ -10,10 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mckev23.homeapp"
+      "bundleIdentifier": "com.homeapp.mobile"
     },
     "android": {
-      "package": "com.mckev23.homeapp"
+      "package": "com.homeapp.mobile"
     },
     "web": {
       "bundler": "metro",

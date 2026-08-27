@@ -72,7 +72,7 @@ Every place "Homie"/"homie" appears in the codebase as of this audit, grouped by
 
 These three were resolved together, before `eas init` was ever run, by switching to a **brand-neutral internal codename** instead of either "Homie" or "hōm" — so a future brand name change (this one, or any later one) never touches them again:
 
-- **iOS/Android bundle identifiers**: `com.homie.app` → **`com.mckev23.homeapp`**. `com.mckev23` is the developer's own identity (permanent, unrelated to the product name); `homeapp` is a generic category codename, not a brand name.
+- **iOS/Android bundle identifiers**: `com.homie.app` → **`com.homeapp.mobile`**. (Briefly used `com.mckev23.homeapp` — the developer's GitHub handle — but changed on request: a bundle ID ships inside the compiled binary and is inspectable by anyone, so it shouldn't carry anything tied to a real person. `com.homeapp.mobile` is fully generic — no personal identity, no brand name.)
 - **Deep link URL scheme**: `"homie"` → **`"homeapp"`**.
 - **`app.json` `slug`**: `"homie"` → **`"homeapp"`** (free to change — `eas init` had not been run yet, so no EAS project existed under the old slug).
 
