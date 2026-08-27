@@ -131,7 +131,11 @@ Treat the following as foundational areas that must not be replaced or rewritten
 - EAS configuration (`eas.json`)
 - Git configuration (`.gitignore`)
 - Database schema and RLS policies (managed via Supabase migrations)
-- Documentation (`CLAUDE.md`, `docs/FOUNDATION.md`, `docs/DEVELOPMENT_RULES.md`)
+- Documentation (`CLAUDE.md`, `docs/FOUNDATION.md`, `docs/DEVELOPMENT_RULES.md`, `BRANDING.md`)
+
+## Rebrand in progress (Homie -> hōm)
+
+A rebrand from "Homie" to "hōm" is underway as a parallel, low-priority track — see `BRANDING.md` for the name, tagline, brand colors, typography, positioning notes, and a full inventory of every place "Homie" appears in the codebase with a cost-to-change rating. Do not rename bundle identifiers, the deep link scheme, or other expensive/irreversible items without explicit sign-off — check `BRANDING.md`'s rename inventory first. Do not let rebrand work block MVP feature work.
 
 When a feature requires changing a foundational area, make the smallest safe change, explain why, and update the relevant documentation.
 

@@ -1,19 +1,25 @@
+// Rebrand in progress (Homie -> hōm). primary/secondary/accent/background are
+// the 4 brand colors as given; the *Soft/textSoft variants are mechanically
+// derived tints, not brand-specified — expect a follow-up design pass once
+// real screenshots are in hand. success/warning/error/muted/border/surface
+// are untouched from the old palette and may read slightly cool against the
+// new warm cream background; revisit together with the derived tints.
 export const colors = {
-  primary: '#0B9F98',
-  primaryDark: '#087C78',
-  primarySoft: '#E4F5F3',
-  secondary: '#17324D',
-  secondarySoft: '#E9EFF4',
-  accent: '#F0B65B',
+  primary: '#5B9C8F',
+  primaryDark: '#4B8075',
+  primarySoft: '#E1E5DB',
+  secondary: '#1E3A5F',
+  secondarySoft: '#E5E0DC',
+  accent: '#F0A868',
   success: '#138A72',
   warning: '#A66A13',
   error: '#B44646',
-  background: '#F8FAF9',
+  background: '#FBF3EA',
   surface: '#FFFFFF',
   border: '#DDE7E5',
   muted: '#64737D',
-  text: '#14283D',
-  textSoft: '#49606D',
+  text: '#1E3A5F',
+  textSoft: '#728094',
   white: '#FFFFFF',
 };
 
@@ -44,7 +50,7 @@ export const typography = {
 
 export const shadows = {
   card: {
-    shadowColor: '#17324D',
+    shadowColor: '#1E3A5F',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.08,
     shadowRadius: 20,
