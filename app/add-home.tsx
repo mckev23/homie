@@ -39,18 +39,18 @@ export default function AddHomeScreen() {
     }
     setError(null);
     setLoading(true);
-    const { error: saveError } = await createHome(user.id, {
+    const { data, error: saveError } = await createHome(user.id, {
       nickname,
       address,
       postalCode,
       yearBuilt: yearBuilt.trim() ? Number(yearBuilt.trim()) : undefined,
     });
     setLoading(false);
-    if (saveError) {
-      setError(saveError.message);
+    if (saveError || !data) {
+      setError(saveError?.message ?? 'Could not save your home. Please try again.');
       return;
     }
-    router.replace('/(tabs)/home');
+    router.replace({ pathname: '/add-systems', params: { homeId: data.id } });
   }
 
   return (

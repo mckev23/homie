@@ -1,28 +1,37 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import { CalendarDays, ChevronRight, House, Sparkles } from 'lucide-react-native';
+import { CalendarDays, ChevronRight, House, Sparkles, Wrench } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Screen } from '@/components/Screen';
+import { fetchHomeSystems, labelForSystem, type SystemType } from '@/src/homeSystems';
 import { fetchPrimaryHome, type Home as HomeRecord } from '@/src/homes';
 import { colors, spacing, typography } from '@/src/theme';
 
 export default function HomeScreen() {
   const [home, setHome] = useState<HomeRecord | null>(null);
+  const [systems, setSystems] = useState<SystemType[]>([]);
   const [loading, setLoading] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
       setLoading(true);
-      fetchPrimaryHome().then(({ data }) => {
-        if (active) {
-          setHome(data);
-          setLoading(false);
+
+      fetchPrimaryHome().then(async ({ data: homeData }) => {
+        if (!active) return;
+        setHome(homeData);
+
+        if (homeData) {
+          const { data: systemsData } = await fetchHomeSystems(homeData.id);
+          if (active) setSystems(systemsData ?? []);
         }
+
+        if (active) setLoading(false);
       });
+
       return () => {
         active = false;
       };
@@ -44,14 +53,31 @@ export default function HomeScreen() {
           <ActivityIndicator color={colors.primary} />
         </View>
       ) : home ? (
-        <Card>
-          <View style={styles.cardIcon}><House color={colors.primary} size={24} /></View>
-          <Text style={styles.cardTitle}>{home.nickname}</Text>
-          {(home.address || home.postal_code) && (
-            <Text style={styles.body}>{[home.address, home.postal_code].filter(Boolean).join(', ')}</Text>
-          )}
-          {home.year_built && <Text style={styles.body}>Built {home.year_built}</Text>}
-        </Card>
+        <View style={styles.cardStack}>
+          <Card>
+            <View style={styles.cardIcon}><House color={colors.primary} size={24} /></View>
+            <Text style={styles.cardTitle}>{home.nickname}</Text>
+            {(home.address || home.postal_code) && (
+              <Text style={styles.body}>{[home.address, home.postal_code].filter(Boolean).join(', ')}</Text>
+            )}
+            {home.year_built && <Text style={styles.body}>Built {home.year_built}</Text>}
+          </Card>
+
+          <Card>
+            <View style={styles.cardIcon}><Wrench color={colors.primary} size={24} /></View>
+            <Text style={styles.cardTitle}>Systems</Text>
+            <Text style={styles.body}>
+              {systems.length > 0 ? systems.map(labelForSystem).join(', ') : 'No systems added yet.'}
+            </Text>
+            <View style={styles.cardAction}>
+              <Button
+                label={systems.length > 0 ? 'Edit systems' : 'Add systems'}
+                variant="secondary"
+                onPress={() => router.push({ pathname: '/add-systems', params: { homeId: home.id } })}
+              />
+            </View>
+          </Card>
+        </View>
       ) : (
         <Card>
           <View style={styles.cardIcon}><House color={colors.primary} size={24} /></View>
@@ -75,6 +101,7 @@ const styles = StyleSheet.create({
   eyebrow: { ...typography.label, color: colors.primaryDark, letterSpacing: 1 },
   title: { ...typography.heading, color: colors.secondary, marginTop: spacing.xs },
   avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  cardStack: { gap: spacing.md },
   loadingWrap: { paddingVertical: spacing.xl, alignItems: 'center' },
   cardIcon: { width: 48, height: 48, borderRadius: 14, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
   cardTitle: { ...typography.subheading, color: colors.secondary },
