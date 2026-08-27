@@ -7,6 +7,7 @@ import { Screen } from '@/components/Screen';
 import { StatusMessage } from '@/components/StatusMessage';
 import { useAuth } from '@/src/auth';
 import { SYSTEM_CATALOG, saveHomeSystems, type SystemType } from '@/src/homeSystems';
+import { ensureMaintenanceTasksForSystems } from '@/src/maintenance';
 import { colors, radii, spacing, typography } from '@/src/theme';
 
 export default function AddSystemsScreen() {
@@ -36,12 +37,17 @@ export default function AddSystemsScreen() {
     }
     setError(null);
     setLoading(true);
-    const { error: saveError } = await saveHomeSystems(user.id, homeId, Array.from(selected));
-    setLoading(false);
+    const selectedTypes = Array.from(selected);
+    const { error: saveError } = await saveHomeSystems(user.id, homeId, selectedTypes);
     if (saveError) {
+      setLoading(false);
       setError(saveError.message);
       return;
     }
+    // Best-effort: seeding the maintenance schedule should never block the
+    // user from proceeding — systems were already saved successfully.
+    await ensureMaintenanceTasksForSystems(user.id, homeId, selectedTypes);
+    setLoading(false);
     router.replace('/(tabs)/home');
   }
 
