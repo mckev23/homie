@@ -24,7 +24,7 @@ export default function SettingsScreen() {
     <Screen>
       <Text style={styles.eyebrow}>APP FOUNDATION</Text>
       <Text style={styles.title}>Settings</Text>
-      <Text style={styles.body}>The essentials are ready for your next Homie step.</Text>
+      <Text style={styles.body}>The essentials are ready for your next hōm step.</Text>
 
       {user?.email && (
         <View style={styles.account}>
@@ -36,11 +36,11 @@ export default function SettingsScreen() {
       <View style={styles.list}>
         <SettingRow icon={<ShieldCheck color={colors.primary} size={20} />} title="Privacy first" detail="Your account and home data will be protected." />
         <SettingRow icon={<FileText color={colors.primary} size={20} />} title="Foundation documentation" detail="Architecture decisions are kept with the project." />
-        <SettingRow icon={<CircleHelp color={colors.primary} size={20} />} title="Help and support" detail="Support tools will be added as Homie grows." />
+        <SettingRow icon={<CircleHelp color={colors.primary} size={20} />} title="Help and support" detail="Support tools will be added as hōm grows." />
       </View>
 
       <Card>
-        <Text style={styles.versionLabel}>HOMIE FOUNDATION</Text>
+        <Text style={styles.versionLabel}>HŌM FOUNDATION</Text>
         <Text style={styles.version}>Version 1.0</Text>
       </Card>
 

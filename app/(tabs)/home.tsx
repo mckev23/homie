@@ -51,7 +51,7 @@ export default function HomeScreen() {
     <Screen>
       <View style={styles.header}>
         <View>
-          <Text style={styles.eyebrow}>WELCOME TO HOMIE</Text>
+          <Text style={styles.eyebrow}>WELCOME TO HŌM</Text>
           <Text style={styles.title}>Your home base</Text>
         </View>
         <View style={styles.avatar}><House color={colors.primaryDark} size={22} /></View>

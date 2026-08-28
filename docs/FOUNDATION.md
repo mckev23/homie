@@ -1,4 +1,4 @@
-# Homie Foundation
+# hōm Foundation
 
 ## Status
 
@@ -6,7 +6,7 @@ Foundation status: **GREEN** — the engineering foundation is complete. Expo/Re
 
 ## Architecture
 
-Homie is a single Expo and React Native application written in TypeScript. Expo Router provides file-based navigation. The same source supports iOS, Android, and a secondary web smoke-preview target.
+hōm is a single Expo and React Native application written in TypeScript. Expo Router provides file-based navigation. The same source supports iOS, Android, and a secondary web smoke-preview target.
 
 Primary targets are iOS and Android. The browser preview is not a substitute for testing safe areas, touch behavior, keyboard handling, native navigation, or device performance.
 
@@ -50,7 +50,9 @@ The mobile app initializes Supabase from the public project URL and anon key. Th
 | Development | Homie Dev | `mhdlhmelgdxdovpwigny` |
 | Production | Homie Production | `eqhwvpjscarwhfstecjv` |
 
-Both are on Postgres 17. Every migration in `supabase/migrations/` has been applied to both via `mcp__supabase__apply_migration`, and the Supabase security advisor is clean on both except one platform-internal function (`public.rls_auto_enable`) that Homie's migrations did not create and should not modify.
+Both are on Postgres 17. Every migration in `supabase/migrations/` has been applied to both via `mcp__supabase__apply_migration`, and the Supabase security advisor is clean on both except one platform-internal function (`public.rls_auto_enable`) that hōm's migrations did not create and should not modify.
+
+Project display names above are still "Homie Dev"/"Homie Production" in the Supabase dashboard — purely cosmetic, not yet renamed (see `BRANDING.md`).
 
 ### Database foundation
 
@@ -175,7 +177,7 @@ The local `.env` file is ignored by Git and contains real values for development
 ## Mobile testing procedure
 
 1. Install Expo Go on the physical iPhone.
-2. Open the Homie project in Bolt and use the Device Preview control to generate the Expo QR code.
+2. Open the hōm project in Bolt and use the Device Preview control to generate the Expo QR code.
 3. Scan the QR code from Expo Go while the iPhone and development environment can reach the same project connection.
 4. Confirm the welcome screen opens, the foundation status is shown, the tab bar switches between all four tabs, and the authentication placeholder can be opened and backed out of.
 5. Check an iPhone with a notch and the keyboard when future forms are introduced; the foundation already provides safe-area and keyboard-avoiding containers.
@@ -184,7 +186,7 @@ Expo Go is the fastest path for JavaScript-only development. A development build
 
 ## Expo and EAS
 
-`app.json`'s display `name` is "Homie" (consumer-facing, changes with the rebrand rollout — not yet done). Its technical identifiers — `slug` (`homeapp`), URL `scheme` (`homeapp`), iOS bundle identifier and Android package (`com.homeapp.mobile`) — were deliberately chosen as a brand-neutral internal codename, decoupled from both "Homie" and "hōm", specifically so a future brand name change never touches them again. The bundle ID was originally `com.mckev23.homeapp` (the developer's GitHub handle) but was changed to the fully generic `com.homeapp.mobile` — a bundle ID ships inside the compiled binary and is inspectable by anyone (App Store tooling, decompilation, third-party app-intelligence sites), so it shouldn't carry anything tied to a real person, even a handle already public elsewhere. These identifiers should be treated as permanent once a store build exists.
+`app.json`'s display `name` is "hōm" (consumer-facing; the full name/text rebrand is complete — see `BRANDING.md`). Its technical identifiers — `slug` (`homeapp`), URL `scheme` (`homeapp`), iOS bundle identifier and Android package (`com.homeapp.mobile`) — were deliberately chosen as a brand-neutral internal codename, decoupled from both "Homie" and "hōm", specifically so a future brand name change never touches them again. The bundle ID was originally `com.mckev23.homeapp` (the developer's GitHub handle) but was changed to the fully generic `com.homeapp.mobile` — a bundle ID ships inside the compiled binary and is inspectable by anyone (App Store tooling, decompilation, third-party app-intelligence sites), so it shouldn't carry anything tied to a real person, even a handle already public elsewhere. These identifiers should be treated as permanent once a store build exists.
 
 `assets/images/icon.png` (1024×1024) and `assets/images/favicon.png` are the final "hōm" stones mark (see `BRANDING.md`), upscaled from a 610×600px source — fine for dev/internal builds, needs a proper high-res/vector export before any App Store or Play Store submission.
 
@@ -194,7 +196,7 @@ The splash screen is configured via the `expo-splash-screen` config plugin in `a
 
 ## Connecting Supabase (dev and production)
 
-**Status: connected.** Two Supabase projects exist — `Homie Dev` (`mhdlhmelgdxdovpwigny`) and `Homie Production` (`eqhwvpjscarwhfstecjv`) — and both have the full migration history applied and verified (see Supabase architecture above). A "Supabase" connector is authorized for this Claude Code account/org, so future sessions can run `apply_migration`, `list_tables`, `get_advisors`, etc. directly against either project by its ref.
+**Status: connected.** Two Supabase projects exist — `Homie Dev` (`mhdlhmelgdxdovpwigny`) and `Homie Production` (`eqhwvpjscarwhfstecjv`) — display names not yet renamed (cosmetic only, see `BRANDING.md`) — and both have the full migration history applied and verified (see Supabase architecture above). A "Supabase" connector is authorized for this Claude Code account/org, so future sessions can run `apply_migration`, `list_tables`, `get_advisors`, etc. directly against either project by its ref.
 
 Remaining wiring, not yet done:
 
@@ -213,7 +215,7 @@ Use Expo Go for early testing. For a shareable Android build, use an EAS preview
 
 A local Git repository has been initialized with a baseline commit containing the full foundation. The `.gitignore` excludes `.env`, `node_modules/`, `.expo/`, `dist/`, `web-build/`, and other build artifacts. The `.env.example` file with placeholder-only values is committed.
 
-**GitHub connection status**: Connected. The repository `mckev23/homie` on GitHub serves as the permanent source-control backup. The full foundation has been pushed to the `main` branch.
+**GitHub connection status**: Connected. The repository `mckev23/homie` on GitHub (name not yet renamed, cosmetic only, see `BRANDING.md`) serves as the permanent source-control backup. The full foundation has been pushed to the `main` branch.
 
 **Git safety rules:**
 

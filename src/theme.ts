@@ -1,4 +1,4 @@
-// Rebrand in progress (Homie -> hōm). primary/secondary/accent/background are
+// Rebrand to hōm. primary/secondary/accent/background are
 // the 4 brand colors as given; the *Soft/textSoft variants are mechanically
 // derived tints, not brand-specified — expect a follow-up design pass once
 // real screenshots are in hand. success/warning/error/muted/border/surface

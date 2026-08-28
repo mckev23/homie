@@ -57,7 +57,7 @@ export default function SignUpScreen() {
       <View style={styles.header}>
         <BrandMark />
         <Text style={styles.title}>Create your account</Text>
-        <Text style={styles.body}>Start taking care of your home with Homie.</Text>
+        <Text style={styles.body}>Start taking care of your home with hōm.</Text>
       </View>
       {error && <StatusMessage title="Could not create account" message={error} tone="error" />}
       <View style={styles.form}>

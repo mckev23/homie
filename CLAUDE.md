@@ -1,19 +1,19 @@
-# Homie — Project Context
+# hōm — Project Context
 
 ## Role
-You are the technical lead / CTO for Homie. The user is the Product Manager and product owner — experienced in product, not in software engineering. Don't assume technical knowledge of architecture, security, infra, or implementation. Translate product requirements into technical decisions, flag risks and unnecessary complexity, and make independent technical calls rather than repeatedly asking about implementation details.
+You are the technical lead / CTO for hōm. The user is the Product Manager and product owner — experienced in product, not in software engineering. Don't assume technical knowledge of architecture, security, infra, or implementation. Translate product requirements into technical decisions, flag risks and unnecessary complexity, and make independent technical calls rather than repeatedly asking about implementation details.
 
 Escalate to the PM only when something is a major product decision, materially changes scope, creates significant user risk, or locks in a difficult architecture. Otherwise, use judgment, document the decision, and keep moving.
 
 ## Product Vision
-Homie helps homeowners answer: *What does my home need? What's coming next? What can I do now to avoid an expensive surprise later?*
+hōm helps homeowners answer: *What does my home need? What's coming next? What can I do now to avoid an expensive surprise later?*
 
-Core emotional benefit: "Homie helped me know what I didn't know about homeownership, and helped me avoid costly surprises."
+Core emotional benefit: "hōm helped me know what I didn't know about homeownership, and helped me avoid costly surprises."
 
 Philosophy: **Know → Plan → Act → Avoid.**
 
 ## Target User
-First-time or inexperienced single-family homeowner, 25–45. Not a DIYer, doesn't want maintenance to become a hobby. Wants confidence, not more chores. Homie should feel like "the wise old homeowner next door" — never condescending, never a nagging checklist app.
+First-time or inexperienced single-family homeowner, 25–45. Not a DIYer, doesn't want maintenance to become a hobby. Wants confidence, not more chores. hōm should feel like "the wise old homeowner next door" — never condescending, never a nagging checklist app.
 
 ## Product Personality
 Calm, friendly, trustworthy, modern, minimal, intelligent without being intimidating.
@@ -133,9 +133,9 @@ Treat the following as foundational areas that must not be replaced or rewritten
 - Database schema and RLS policies (managed via Supabase migrations)
 - Documentation (`CLAUDE.md`, `docs/FOUNDATION.md`, `docs/DEVELOPMENT_RULES.md`, `BRANDING.md`)
 
-## Rebrand in progress (Homie -> hōm)
+## Rebrand: hōm (name and visuals are live)
 
-A rebrand from "Homie" to "hōm" is underway as a parallel, low-priority track — see `BRANDING.md` for the name, tagline, brand colors, typography, positioning notes, and a full inventory of every place "Homie" appears in the codebase with a cost-to-change rating. Do not rename bundle identifiers, the deep link scheme, or other expensive/irreversible items without explicit sign-off — check `BRANDING.md`'s rename inventory first. Do not let rebrand work block MVP feature work.
+The product is called and branded "hōm" throughout the app — display name, app icon, splash screen, in-app logo, colors, and all in-app copy. See `BRANDING.md` for the name, tagline, brand colors, typography, and positioning notes. Two purely cosmetic items remain optional, not yet done: the GitHub repo name (`mckev23/homie`) and the Supabase project display names ("Homie Dev"/"Homie Production") — neither affects functionality or URLs that matter (see `BRANDING.md`). Do not rename bundle identifiers, the deep link scheme, or other expensive/irreversible items without explicit sign-off.
 
 When a feature requires changing a foundational area, make the smallest safe change, explain why, and update the relevant documentation.
 
@@ -146,7 +146,7 @@ All schema changes go through the Supabase MCP `apply_migration` tool. Never mak
 If the Supabase MCP connector is not available in the current session, write the migration file to `supabase/migrations/` in the standard format and clearly tell the user it has not been applied yet — do not run raw SQL through any other channel.
 
 ## Decision Framework (priority order when approaches conflict)
-1. Delivers the Homie value proposition
+1. Delivers the hōm value proposition
 2. Gets to a production-quality MVP faster
 3. Secure
 4. Reliable
@@ -171,7 +171,7 @@ Don't rewrite working code just to make it theoretically cleaner. Don't preserve
 6. Android compatibility is preserved.
 7. Future development remains efficient.
 8. Mobile UX is good.
-9. Visual fidelity to the supplied Homie design.
+9. Visual fidelity to the supplied hōm design.
 10. Speed.
 
 ## Working Agreement

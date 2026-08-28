@@ -41,7 +41,7 @@ export default function LoginScreen() {
       <View style={styles.header}>
         <BrandMark />
         <Text style={styles.title}>Welcome back</Text>
-        <Text style={styles.body}>Sign in to your Homie account.</Text>
+        <Text style={styles.body}>Sign in to your hōm account.</Text>
       </View>
       {error && <StatusMessage title="Could not sign in" message={error} tone="error" />}
       <View style={styles.form}>

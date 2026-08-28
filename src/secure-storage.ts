@@ -1,7 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import type { SupportedStorage } from '@supabase/auth-js';
 
-const PREFIX = 'homie-auth-';
+const PREFIX = 'hom-auth-';
 
 export const secureStorage: SupportedStorage = {
   getItem: async (key: string): Promise<string | null> => {

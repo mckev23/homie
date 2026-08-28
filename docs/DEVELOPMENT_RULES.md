@@ -1,6 +1,6 @@
-# Homie Development Rules
+# hōm Development Rules
 
-Homie is built as one Expo and React Native mobile application for iPhone and Android. Build only the current MVP step: foundation, then account creation, then adding a home, then a simple maintenance schedule.
+hōm is built as one Expo and React Native mobile application for iPhone and Android. Build only the current MVP step: foundation, then account creation, then adding a home, then a simple maintenance schedule.
 
 ## Work in small increments
 
