@@ -1,14 +1,23 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import { CalendarDays, ChevronRight, House, Sparkles, Wrench } from 'lucide-react-native';
+import { CalendarDays, ChevronRight, Compass, House, Sparkles, Wrench } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Screen } from '@/components/Screen';
 import { fetchHomeSystems, labelForSystem, type SystemType } from '@/src/homeSystems';
 import { fetchPrimaryHome, type Home as HomeRecord } from '@/src/homes';
+import { classifyHorizon, horizonMessage, sortByHorizonPriority, type HorizonStatus } from '@/src/systemHorizon';
 import { colors, spacing, typography } from '@/src/theme';
+
+const CURRENT_YEAR = new Date().getFullYear();
+
+const STATUS_DOT_COLOR: Record<HorizonStatus, string> = {
+  past: colors.accent,
+  approaching: colors.primary,
+  early: colors.border,
+};
 
 export default function HomeScreen() {
   const [home, setHome] = useState<HomeRecord | null>(null);
@@ -77,6 +86,32 @@ export default function HomeScreen() {
               />
             </View>
           </Card>
+
+          {home.year_built && systems.length > 0 && (
+            <Card>
+              <View style={styles.cardIcon}><Compass color={colors.primary} size={24} /></View>
+              <Text style={styles.cardTitle}>What's coming next</Text>
+              <Text style={styles.body}>
+                A general sense of where things stand, assuming your systems are original to the home.
+              </Text>
+              <View style={styles.horizonList}>
+                {sortByHorizonPriority(
+                  systems.map((systemType) => ({
+                    systemType,
+                    status: classifyHorizon(CURRENT_YEAR - home.year_built!, systemType),
+                  }))
+                ).map(({ systemType, status }) => (
+                  <View key={systemType} style={styles.horizonRow}>
+                    <View style={[styles.horizonDot, { backgroundColor: STATUS_DOT_COLOR[status] }]} />
+                    <View style={styles.horizonCopy}>
+                      <Text style={styles.horizonTitle}>{labelForSystem(systemType)}</Text>
+                      <Text style={styles.horizonBody}>{horizonMessage(status)}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </Card>
+          )}
         </View>
       ) : (
         <Card>
@@ -89,8 +124,10 @@ export default function HomeScreen() {
         </Card>
       )}
 
-      <Text style={styles.sectionTitle}>Foundation preview</Text>
-      <View style={styles.rowCard}><CalendarDays color={colors.primary} size={22} /><View style={styles.rowCopy}><Text style={styles.rowTitle}>Simple maintenance</Text><Text style={styles.rowBody}>A clear place for what needs attention.</Text></View><ChevronRight color={colors.muted} size={20} /></View>
+      <Text style={styles.sectionTitle}>More to explore</Text>
+      <Pressable style={styles.rowCard} onPress={() => router.push('/(tabs)/maintenance')} accessibilityRole="button">
+        <CalendarDays color={colors.primary} size={22} /><View style={styles.rowCopy}><Text style={styles.rowTitle}>Simple maintenance</Text><Text style={styles.rowBody}>A clear place for what needs attention.</Text></View><ChevronRight color={colors.muted} size={20} />
+      </Pressable>
       <View style={styles.rowCard}><Sparkles color={colors.accent} size={22} /><View style={styles.rowCopy}><Text style={styles.rowTitle}>Helpful guidance</Text><Text style={styles.rowBody}>Practical support for confident homeowners.</Text></View><ChevronRight color={colors.muted} size={20} /></View>
     </Screen>
   );
@@ -112,4 +149,10 @@ const styles = StyleSheet.create({
   rowCopy: { flex: 1 },
   rowTitle: { ...typography.label, color: colors.secondary },
   rowBody: { ...typography.caption, color: colors.textSoft, marginTop: 3 },
+  horizonList: { gap: spacing.md, marginTop: spacing.lg },
+  horizonRow: { flexDirection: 'row', gap: spacing.sm },
+  horizonDot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
+  horizonCopy: { flex: 1 },
+  horizonTitle: { ...typography.label, color: colors.secondary },
+  horizonBody: { ...typography.caption, color: colors.textSoft, marginTop: 2 },
 });
