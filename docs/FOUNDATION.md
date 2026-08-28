@@ -50,7 +50,7 @@ The mobile app initializes Supabase from the public project URL and anon key. Th
 | Development | Homie Dev | `mhdlhmelgdxdovpwigny` |
 | Production | Homie Production | `eqhwvpjscarwhfstecjv` |
 
-Both are on Postgres 17. All five migrations in `supabase/migrations/` have been applied to both via `mcp__supabase__apply_migration`, and the Supabase security advisor is clean on both except one platform-internal function (`public.rls_auto_enable`) that Homie's migrations did not create and should not modify.
+Both are on Postgres 17. Every migration in `supabase/migrations/` has been applied to both via `mcp__supabase__apply_migration`, and the Supabase security advisor is clean on both except one platform-internal function (`public.rls_auto_enable`) that Homie's migrations did not create and should not modify.
 
 ### Database foundation
 
@@ -75,19 +75,47 @@ A `homes` table (schema in `supabase/migrations/20260826180000_create_homes_tabl
 | `year_built` | integer, nullable | For future age-based maintenance guidance. |
 | `created_at` / `updated_at` | timestamptz | Same pattern as `profiles`. |
 
+A `home_systems` table (`20260827120000_create_home_systems_table.sql`) records which of a fixed, small set of systems a home has:
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | uuid, PK | `gen_random_uuid()`. |
+| `home_id` | uuid | FK to `homes(id)` with `ON DELETE CASCADE`. |
+| `user_id` | uuid | Denormalized owner reference — same pattern as `homes` — so RLS policies check `auth.uid() = user_id` directly instead of joining through `homes`. |
+| `system_type` | text | `CHECK`-constrained to `'heating' \| 'cooling' \| 'water_heater' \| 'electrical_panel' \| 'sewer_septic'`. |
+| `created_at` / `updated_at` | timestamptz | Same pattern as `profiles`. |
+
+Unique on `(home_id, system_type)` — toggling a system on twice is a no-op, not a duplicate row.
+
+A `maintenance_tasks` table (`20260827130000_create_maintenance_tasks_table.sql`) holds the "simple maintenance schedule" (MVP sequence step 4):
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | uuid, PK | `gen_random_uuid()`. |
+| `home_id` | uuid | FK to `homes(id)` with `ON DELETE CASCADE`. |
+| `user_id` | uuid | Denormalized owner reference, same reasoning as `home_systems`. |
+| `system_type` | text, nullable | Informational link back to the system category this task came from. No FK to `home_systems` — removing a system should not silently delete task history. |
+| `title` | text | e.g. "Replace furnace filter". |
+| `frequency_months` | integer | A recurrence cadence, not a predicted date — matches the "no false precision" product rule. |
+| `last_completed_at` | timestamptz, nullable | Null means never completed. |
+| `created_at` / `updated_at` | timestamptz | Same pattern as `profiles`. |
+
+Unique on `(home_id, title)` so re-saving systems seeds via `ON CONFLICT DO NOTHING` and never resets a task's completion history. Seeded from a small static best-practice template per system type in `src/maintenance.ts`, not a dynamic recommendation engine.
+
 ### Row Level Security
 
-RLS is enabled on both `profiles` and `homes`. Four owner-scoped policies each (one per CRUD verb):
+RLS is enabled on `profiles`, `homes`, `home_systems`, and `maintenance_tasks`. Four owner-scoped policies each (one per CRUD verb):
 
 - `profiles`: `auth.uid() = id`
-- `homes`: `auth.uid() = user_id`
+- `homes`, `home_systems`, `maintenance_tasks`: `auth.uid() = user_id`
 
 All policies are scoped `TO authenticated`. No public or anon access. No broad `USING(true)` policies. A follow-up migration additionally revoked public/anon/authenticated `EXECUTE` on `handle_new_user()` — the security advisor flagged it as callable as an RPC endpoint; it's a `SECURITY DEFINER` trigger function that would error if invoked outside trigger context, but there was no reason to leave that surface open.
 
-### Relationship: User → Profile → Home
+### Relationship: User → Profile → Home → Systems / Maintenance
 
 ```
-auth.users (Supabase Auth) → profiles → homes
+auth.users (Supabase Auth) → profiles → homes → home_systems
+                                              → maintenance_tasks
 ```
 
 Maintenance and project tables will follow the same owner-scoped pattern once the "add a home" feature is built and validated.
@@ -196,9 +224,9 @@ A local Git repository has been initialized with a baseline commit containing th
 
 ## Known limitations
 
-- Whether email confirmation is on/off has not been checked for either project — the MCP connector's tools don't expose Auth config directly; confirm in each project's dashboard under Authentication → Providers → Email before relying on the `needsConfirmation` signup path.
+- Email confirmation is confirmed **on** for both projects (verified by the PM directly in each dashboard).
 - `eas env:create` has not been run — EAS builds don't yet have Supabase credentials wired in (see "Connecting Supabase" above). Local `.env` also still needs to be created per-machine (gitignored, never committed).
-- App icon and favicon are placeholder brand marks, not final artwork — fine for dev/internal builds, must be replaced before store submission.
+- App icon and favicon are the real Homie logo (house-and-smile glyph), not a placeholder — but will be superseded by the new "hōm" brand assets (icon/wordmark/lockup SVGs) once the PM drops them in; see `BRANDING.md`.
 - No crash/error reporting is wired up; `src/logger.ts` only logs in `__DEV__`.
 - No CI (lint/typecheck) runs on push.
 - `npm audit` reports vulnerabilities, all transitive through Expo's native-build tooling (`xcode`/`@expo/config-plugins`, used only by `prebuild`/EAS builds, not shipped in the app bundle). Fixing requires a breaking Expo major-version bump — deliberately deferred, not a silent risk.
