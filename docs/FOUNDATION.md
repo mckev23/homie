@@ -186,7 +186,9 @@ Expo Go is the fastest path for JavaScript-only development. A development build
 
 `app.json`'s display `name` is "Homie" (consumer-facing, changes with the rebrand rollout — not yet done). Its technical identifiers — `slug` (`homeapp`), URL `scheme` (`homeapp`), iOS bundle identifier and Android package (`com.homeapp.mobile`) — were deliberately chosen as a brand-neutral internal codename, decoupled from both "Homie" and "hōm", specifically so a future brand name change never touches them again. The bundle ID was originally `com.mckev23.homeapp` (the developer's GitHub handle) but was changed to the fully generic `com.homeapp.mobile` — a bundle ID ships inside the compiled binary and is inspectable by anyone (App Store tooling, decompilation, third-party app-intelligence sites), so it shouldn't carry anything tied to a real person, even a handle already public elsewhere. These identifiers should be treated as permanent once a store build exists.
 
-`assets/images/icon.png` (1024×1024) and `assets/images/favicon.png` are placeholder marks in the brand teal (`colors.primary`) with a simple house glyph, generated to unblock builds. They satisfy `app.json`'s asset requirements but should be replaced with final brand artwork before any App Store or Play Store submission — a placeholder icon is acceptable for internal/dev builds, not for public release.
+`assets/images/icon.png` (1024×1024) and `assets/images/favicon.png` are the final "hōm" stones mark (see `BRANDING.md`), upscaled from a 610×600px source — fine for dev/internal builds, needs a proper high-res/vector export before any App Store or Play Store submission.
+
+The splash screen is configured via the `expo-splash-screen` config plugin in `app.json`'s `plugins` array — the stones mark (`assets/images/hom-icon.png`) centered on the `#FBF3EA` cream background.
 
 `eas.json` includes development, preview, and production build profiles, each with an explicit `"environment"` field of the same name. This maps each profile to an EAS Environment Variables scope so development/preview and production builds can point at different Supabase projects without editing `eas.json` or committing project-specific values. Set the actual values with `eas env:create` (or the EAS dashboard) per environment — see the Supabase connection steps below. Before building outside Bolt, use an Expo account and EAS CLI, then run Expo's project diagnostics. EAS manages native signing credentials during the build flow.
 
@@ -226,7 +228,7 @@ A local Git repository has been initialized with a baseline commit containing th
 
 - Email confirmation is confirmed **on** for both projects (verified by the PM directly in each dashboard).
 - `eas env:create` has not been run — EAS builds don't yet have Supabase credentials wired in (see "Connecting Supabase" above). Local `.env` also still needs to be created per-machine (gitignored, never committed).
-- App icon and favicon are the real Homie logo (house-and-smile glyph), not a placeholder — but will be superseded by the new "hōm" brand assets (icon/wordmark/lockup SVGs) once the PM drops them in; see `BRANDING.md`.
+- App icon and favicon are now the final "hōm" stones mark (see `BRANDING.md`). Source art is only 610×600px — fine for dev/internal builds, needs a proper high-res/vector export before real store submission.
 - No crash/error reporting is wired up; `src/logger.ts` only logs in `__DEV__`.
 - No CI (lint/typecheck) runs on push.
 - `npm audit` reports vulnerabilities, all transitive through Expo's native-build tooling (`xcode`/`@expo/config-plugins`, used only by `prebuild`/EAS builds, not shipped in the app bundle). Fixing requires a breaking Expo major-version bump — deliberately deferred, not a silent risk.

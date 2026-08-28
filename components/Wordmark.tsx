@@ -5,7 +5,7 @@ import { colors } from '@/src/theme';
 /*
 Renders the "hōm" wordmark: Quicksand Bold with the macron drawn as a small
 rounded rectangle above the "o", rather than a font glyph or an image asset.
-Not yet wired into any live screen — see BRANDING.md for rollout status.
+Used by components/BrandMark.tsx.
 */
 
 type WordmarkProps = { size?: number; color?: string };

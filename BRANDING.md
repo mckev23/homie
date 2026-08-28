@@ -1,6 +1,6 @@
 # hōm — Brand Reference
 
-**Status: rebrand in progress.** The product is still called and configured as "Homie" throughout the codebase — see the rename inventory below. This document is the source of truth for the new brand while that transition happens. Nothing irreversible (bundle ID, deep link scheme) has been changed yet.
+**Status: rebrand in progress.** The visual identity (app icon, splash screen, in-app logo mark, colors) is live. The product's *name* is still "Homie" everywhere else — display name, screen copy, docs prose — see the rename inventory below. This document is the source of truth for the new brand while that transition happens. Nothing irreversible (bundle ID, deep link scheme) has been changed yet.
 
 ## Name
 
@@ -26,8 +26,18 @@ Applied to `src/theme.ts`: `primary`=teal, `secondary`=navy, `accent`=peach, `ba
 
 ## Typography
 
-- **Wordmark**: "hōm" in Quicksand Bold. The macron over the "o" is drawn natively as a small rounded rectangle positioned above the letter — not a font glyph, not an image. Implemented in `components/Wordmark.tsx` (built, not yet wired into any live screen).
+- **Wordmark**: "hōm" in Quicksand Bold. The macron over the "o" is drawn natively as a small rounded rectangle positioned above the letter — not a font glyph, not an image. Implemented in `components/Wordmark.tsx`, used by `components/BrandMark.tsx` (live on every screen that shows the logo).
 - No other typeface change requested or made — body/heading text elsewhere in the app is unaffected for now.
+
+## Visual identity — live
+
+The final logo (stacked-stones icon + wordmark + tagline) was delivered as PNG exports and is now wired in:
+
+- **App icon / favicon** (`assets/images/icon.png`, `favicon.png`): the stones mark, cropped square and upscaled from the source (1024×1024 / 196×196). **The source art is only 610×600px** — fine for dev/internal builds, but get a proper high-res or vector (SVG) export before real App Store/Play Store submission; upscaling this far will look soft at full resolution.
+- **Splash screen**: configured via the `expo-splash-screen` config plugin in `app.json` — the same stones mark centered on the `#FBF3EA` cream background.
+- **In-app logo** (`components/BrandMark.tsx`): now renders the stones icon (`assets/images/hom-icon.png`) beside the code-rendered `Wordmark` component, replacing the old flattened Homie logo image. Live on every screen that uses `BrandMark` (welcome, login, signup, verify-email).
+- `assets/images/hom-logo-full.png` keeps the full lockup (icon + wordmark + tagline) as a reference asset for future marketing use; not wired into the app itself.
+- The old `assets/images/homie-logo.png` is no longer referenced anywhere in code but was left in place rather than deleted.
 
 ## Visual mark
 
@@ -52,13 +62,12 @@ This section exists so the positioning survives context resets across future ses
 
 Do not commit to the name publicly (App Store listing, marketing, domain purchase) until both are resolved.
 
-## Rename inventory (audit — nothing renamed yet)
+## Rename inventory (audit — text/name not renamed yet; visual identity is done, see above)
 
 Every place "Homie"/"homie" appears in the codebase as of this audit, grouped by how expensive each is to change later.
 
 ### Cheap — cosmetic text/labels, change anytime, no functional impact
 - `app/login.tsx`, `app/signup.tsx`, `app/index.tsx`, `app/(tabs)/home.tsx`, `app/(tabs)/settings.tsx` — user-facing copy ("Sign in to your Homie account", "WELCOME TO HOMIE", etc.)
-- `components/BrandMark.tsx` — `accessibilityLabel="Homie"`, and the require path for `homie-logo.png`
 - `src/logger.ts` — `[Homie]` console prefix (dev-only, invisible to users)
 - `CLAUDE.md`, `docs/FOUNDATION.md`, `docs/DEVELOPMENT_RULES.md` — project documentation prose
 - `package.json` `"name": "bolt-expo-starter"` — actually not "Homie"-branded at all; it's a leftover Bolt template name. Separate, low-priority cleanup whenever renaming happens.
