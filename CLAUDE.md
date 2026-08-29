@@ -65,6 +65,7 @@ Separate dev and prod environments are required. If there's a materially better 
 - Dev and prod environments and data never mixed.
 - Errors handled gracefully; no raw error/stack leakage to users.
 - A security review appropriate to app size/risk before production release.
+- Design Fidelity Rules (see `BRANDING.md`) apply to every generated/exported screen — Figma, image, or rendered UI. No clipped/overflowing text, validated at 390/393/430px, self-checked before presenting — not after the PM catches it.
 
 ## Engineering rules
 

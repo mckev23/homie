@@ -29,6 +29,42 @@ Applied to `src/theme.ts`: `primary`=teal, `secondary`=navy, `accent`=peach, `ba
 - **Wordmark**: "hōm" in Quicksand Bold. The macron over the "o" is drawn natively as a small rounded rectangle positioned above the letter — not a font glyph, not an image. Implemented in `components/Wordmark.tsx`, used by `components/BrandMark.tsx` (live on every screen that shows the logo).
 - No other typeface change requested or made — body/heading text elsewhere in the app is unaffected for now.
 
+## Design Fidelity Rules — non-negotiable, apply to every generated/exported screen
+
+These apply whenever a screen is generated or exported — to Figma, as an image, or as rendered UI (React Native or otherwise). Not style suggestions; treat failures as bugs to fix before presenting the screen, not after.
+
+1. **Text containers**
+   - All body copy, subheads, and headlines use fixed width, auto height — never auto-width.
+   - Text must wrap within its container at every target viewport below. No text may touch, cross, or extend past the frame edge.
+   - If a heading is long, reduce font size within a defined min/max range rather than letting it overflow. Never truncate a headline without an explicit ellipsis and the PM's sign-off.
+
+2. **Target viewports — validate against all of these**
+   - 390px width (iPhone 14/15)
+   - 393px width (iPhone 15/16 Pro)
+   - 430px width (iPhone Pro Max)
+   - A screen is not "done" at 430px alone — it must also be checked at 390px, the tightest case.
+
+3. **Spacing & sizing tokens** (the app's actual scale — see `src/theme.ts`, not a generic placeholder)
+   - **Spacing scale**: `8 / 12 / 16 / 24 / 32 / 48px` only (`spacing.xs/sm/md/lg/xl/xxl`) — no arbitrary values. Note: an earlier draft of this rule said "4/8/16/24/32/48" — there is no 4px token anywhere in the app, and 12px (`spacing.sm`) is used extensively (button/card internals, form gaps). Flag if the scale itself should actually change; until then this is the real one.
+   - **Corner radius**: `radii.sm`=10px (buttons, inputs, status messages), `radii.md`=16px (cards), `radii.lg`=24px, `radii.pill`=999px (chips only — most buttons are NOT pill-shaped, they use `radii.sm`).
+   - **Font sizes** (`typography` in `src/theme.ts`): title 32/38 (Bold), heading 24/29 (Bold), subheading 18/24 (Bold), body 16/24 (Regular), label 13/18 (Semi Bold), caption 12/17 (Regular). Pairs are size/line-height in px.
+   - **Colors**: reference the exact hex tokens in the Brand colors table above and `src/theme.ts` directly — never approximate or eyeball a color.
+
+4. **Mandatory self-check before presenting any screen** — inspect the actual output and explicitly answer:
+   - Does any text touch or cross the frame edge? (fail if yes)
+   - Is any string cut off mid-word without ellipsis? (fail if yes)
+   - Are all interactive elements (buttons, inputs) fully visible, not clipped?
+   - Does spacing match the token scale above (no odd/arbitrary px values)?
+   - Does this hold at both 390px and 430px width?
+
+   If any check fails, fix it before presenting the screen — never show it and wait for the PM to catch it.
+
+5. **When exporting to Figma**
+   - Pull actual node/variable data from the Figma file via the Figma MCP tools rather than regenerating from a text description.
+   - After export, take a screenshot of the result and visually diff it against the source before calling the task done.
+
+6. **Reporting back** — state explicitly: "Checked at 390px and 430px, no clipping or overflow found" — or name exactly what couldn't be verified (e.g. no device/simulator access, a tool disconnected mid-task). Never imply a check happened when it didn't.
+
 ## Visual identity — live
 
 The final logo (stacked-stones icon + wordmark + tagline) was delivered as PNG exports and is now wired in:
