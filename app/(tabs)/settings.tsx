@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
-import { ChevronRight, CircleHelp, FileText, LogOut, ShieldCheck } from 'lucide-react-native';
+import { ChevronRight, CircleHelp, FileText, LogOut, ShieldCheck, Trash2 } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Screen } from '@/components/Screen';
@@ -10,14 +10,54 @@ import { useAuth } from '@/src/auth';
 import { colors, spacing, typography } from '@/src/theme';
 
 export default function SettingsScreen() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, deleteAccount } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   async function handleSignOut() {
     setSigningOut(true);
     await signOut();
     setSigningOut(false);
     router.replace('/');
+  }
+
+  async function performDelete() {
+    setDeleteError(null);
+    setDeleting(true);
+    const { error } = await deleteAccount();
+    setDeleting(false);
+    if (error) {
+      setDeleteError(error.message);
+      return;
+    }
+    router.replace('/');
+  }
+
+  // Two-step confirmation: deletion is irreversible, so it should never be
+  // one tap away. Required by App Store Guideline 5.1.1(v).
+  function confirmDelete() {
+    Alert.alert(
+      'Delete your account?',
+      'This permanently deletes your account, your home, its systems, and your maintenance schedule. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'This cannot be undone',
+              'Are you sure you want to permanently delete your hōm account?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Delete forever', style: 'destructive', onPress: performDelete },
+              ]
+            );
+          },
+        },
+      ]
+    );
   }
 
   return (
@@ -48,6 +88,22 @@ export default function SettingsScreen() {
         <StatusMessage title="Account" message="You can sign out at any time. You'll need to sign in again to return." />
         <Button label="Sign out" variant="secondary" loading={signingOut} onPress={handleSignOut} icon={<LogOut color={colors.primaryDark} size={18} />} />
       </View>
+
+      <View style={styles.dangerArea}>
+        {deleteError && <StatusMessage title="Could not delete account" message={deleteError} tone="error" />}
+        <Text style={styles.dangerLabel}>Delete account</Text>
+        <Text style={styles.dangerBody}>
+          Permanently deletes your account and everything in it — your home, its systems, and your
+          maintenance schedule. This cannot be undone.
+        </Text>
+        <Button
+          label="Delete my account"
+          variant="secondary"
+          loading={deleting}
+          onPress={confirmDelete}
+          icon={<Trash2 color={colors.error} size={18} />}
+        />
+      </View>
     </Screen>
   );
 }
@@ -73,4 +129,7 @@ const styles = StyleSheet.create({
   versionLabel: { ...typography.caption, color: colors.primaryDark },
   version: { ...typography.subheading, color: colors.secondary, marginTop: spacing.xs },
   signOutArea: { marginTop: spacing.xl, gap: spacing.md },
+  dangerArea: { marginTop: spacing.xl, gap: spacing.sm },
+  dangerLabel: { ...typography.label, color: colors.error },
+  dangerBody: { ...typography.caption, color: colors.textSoft },
 });

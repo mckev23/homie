@@ -226,9 +226,53 @@ A local Git repository has been initialized with a baseline commit containing th
 - Source code, documentation, and configuration files are committed.
 - The working tree should be clean after each completed feature.
 
+## Auth deep links (password reset)
+
+`resetPasswordForEmail` sends the user back into the app via
+`PASSWORD_RESET_REDIRECT` in `src/auth.tsx`, built with
+`Linking.createURL('/reset-password')`. That resolves to
+`homeapp://reset-password` in a standalone build, and to an
+`exp://…/--/reset-password` URL under Expo Go.
+
+`app/reset-password.tsx` reads the tokens off the incoming link
+(`src/authLinks.ts` parses both the URL fragment and the query string, so
+it works under either the implicit or PKCE flow), exchanges them for a
+session via `setSession`, then calls `updateUser` to set the new password.
+Expired or already-used links are detected and routed back to
+"request a new link" rather than failing silently.
+
+**Required dashboard configuration — the flow does not work without it.**
+In each Supabase project, under Authentication → URL Configuration →
+Redirect URLs, allow-list the redirect targets. Supabase only honours a
+`redirectTo` value that matches the allow-list; otherwise it silently
+falls back to the Site URL and the email link will not open hōm:
+
+- `homeapp://**` — standalone / TestFlight / store builds
+- the `exp://` URL printed by `npx expo start` — Expo Go development only
+  (it changes with the host machine's IP, so re-add it when it changes)
+
+## Account deletion
+
+`delete_current_user()` (migration
+`20260828120000_create_delete_current_user_function.sql`) is a
+`SECURITY DEFINER` function that deletes the caller's own `auth.users` row.
+Every hōm table cascades from `auth.users(id)`, so one statement removes
+the profile, home, systems, and maintenance tasks. It takes no parameters
+and operates only on `auth.uid()`, so a caller cannot target another
+account. `EXECUTE` is revoked from `PUBLIC`/`anon` and granted only to
+`authenticated`.
+
+This exists because App Store Guideline 5.1.1(v) requires in-app account
+deletion for any app offering account creation. Deletion is a hard delete
+by design (see the migration's comment for the rationale) and is behind a
+two-step confirmation in `app/(tabs)/settings.tsx`.
+
 ## Known limitations
 
 - Email confirmation is confirmed **on** for both projects (verified by the PM directly in each dashboard).
+- `delete_current_user()` migration is written but **not yet applied** — the Supabase MCP connector was unavailable in the session that authored it. Apply to both projects via `mcp__supabase__apply_migration` before account deletion will work.
+- The password-reset redirect URLs have **not yet been allow-listed** in either Supabase project (see "Auth deep links" above). Until that is done, reset emails will not open the app.
+- Neither the password reset nor the account deletion flow has been exercised on a real device — both are typecheck-clean only.
 - `eas env:create` has not been run — EAS builds don't yet have Supabase credentials wired in (see "Connecting Supabase" above). Local `.env` also still needs to be created per-machine (gitignored, never committed).
 - App icon and favicon are now the final "hōm" stones mark (see `BRANDING.md`). Source art is only 610×600px — fine for dev/internal builds, needs a proper high-res/vector export before real store submission.
 - No crash/error reporting is wired up; `src/logger.ts` only logs in `__DEV__`.
