@@ -15,6 +15,15 @@ Supabase silently falls back to the Site URL and the link won't open hōm.
 */
 export const PASSWORD_RESET_REDIRECT = Linking.createURL('/reset-password');
 
+/*
+Where Supabase sends the user after they tap a signup confirmation email
+link. Unlike password reset, the app doesn't need to read anything off
+this link — Supabase confirms the email server-side before redirecting —
+so this just needs to land somewhere valid instead of falling back to the
+dashboard's default Site URL (which was left at localhost:3000).
+*/
+export const SIGNUP_CONFIRM_REDIRECT = Linking.createURL('/login');
+
 type AuthContextValue = {
   session: Session | null;
   user: User | null;
@@ -84,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const credentials: SignUpWithPasswordCredentials = {
         email,
         password,
-        options: { data: { full_name: fullName } },
+        options: { data: { full_name: fullName }, emailRedirectTo: SIGNUP_CONFIRM_REDIRECT },
       };
       const { data, error } = await supabase.auth.signUp(credentials);
       if (error) {
@@ -156,7 +165,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     async resendConfirmation(email) {
       if (!supabase) return { error: { message: 'Service unavailable.' } };
-      const { error } = await supabase.auth.resend({ type: 'signup', email });
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: { emailRedirectTo: SIGNUP_CONFIRM_REDIRECT },
+      });
       if (error) {
         return { error: { message: translateError(error.code, error.message) } };
       }
