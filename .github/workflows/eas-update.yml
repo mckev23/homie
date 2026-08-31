@@ -54,14 +54,25 @@ jobs:
       - name: Configure EAS Update
         run: npx eas-cli@latest update:configure --non-interactive
 
+      # The commit message reaches the shell through the environment, never
+      # through ${{ }} interpolation. Interpolating it directly pastes raw
+      # text into the script, so a message containing backticks or quotes
+      # breaks the syntax (and would let anyone who can push a commit run
+      # commands here). Only the first line is used, capped well under the
+      # 1024-character limit `eas update --message` enforces.
       - name: Publish update
         env:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
+          SUMMARY=$(printf '%s' "$COMMIT_MESSAGE" | head -n 1 | cut -c1-200)
+          if [ -z "$SUMMARY" ]; then
+            SUMMARY="Manual publish"
+          fi
           npx eas-cli@latest update \
             --branch preview \
-            --message "${{ github.event.head_commit.message || 'Manual publish' }}" \
+            --message "$SUMMARY" \
             --non-interactive 2>&1 | tee update-output.txt
 
       # Surfaces the link on the workflow's summary page so it can be tapped
