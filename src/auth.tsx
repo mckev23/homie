@@ -68,19 +68,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase?.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+    // Without config there is no session to restore. Resolve immediately so
+    // the app renders the signed-out state (which surfaces the missing
+    // config) instead of sitting on a blank loading screen forever.
+    if (!supabase) {
       setLoading(false);
-    });
+      return;
+    }
 
-    const sub = supabase?.auth.onAuthStateChange((_event, newSession) => {
-      (async () => {
-        setSession(newSession);
-      })();
+    supabase.auth
+      .getSession()
+      .then(({ data }) => setSession(data.session))
+      // A failed session lookup means "not signed in", not "hang forever".
+      .catch(() => setSession(null))
+      .finally(() => setLoading(false));
+
+    const sub = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
     });
 
     return () => {
-      sub?.data.subscription.unsubscribe();
+      sub.data.subscription.unsubscribe();
     };
   }, []);
 
