@@ -12,11 +12,13 @@
 
 name: Publish preview to phone
 
+# Manual only. Opening an EAS Update in Expo Go proved unreliable in
+# practice, so the web preview workflow is the primary testing path for now
+# and this no longer runs on every push. Kept because it is still the right
+# mechanism once there is a development or TestFlight build to receive
+# updates. Run it from the "Run workflow" button when that time comes.
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - claude/homie-cto-assessment-rwm1ls
 
 jobs:
   publish:

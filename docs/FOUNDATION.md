@@ -171,18 +171,50 @@ The migration history is visible via `mcp__supabase__list_migrations`. To recrea
 
 - `EXPO_PUBLIC_SUPABASE_URL`: public Supabase project URL; client-safe.
 - `EXPO_PUBLIC_SUPABASE_ANON_KEY`: public Supabase anon key; client-safe, but never substitute a service-role key.
+- `EXPO_PUBLIC_DEBUG_ERRORS`: optional. Set to `1` to let the crash screen
+  show the underlying error text. Preview builds set it; **production must
+  never set it**, so real users only ever see plain language.
 
 The local `.env` file is ignored by Git and contains real values for development only. Secret values, if required by future server-side Edge Functions, must remain server-side and must not be copied into Expo public variables.
 
-## Mobile testing procedure
+## Testing procedure
 
-1. Install Expo Go on the physical iPhone.
-2. Open the hōm project in Bolt and use the Device Preview control to generate the Expo QR code.
-3. Scan the QR code from Expo Go while the iPhone and development environment can reach the same project connection.
-4. Confirm the welcome screen opens, the foundation status is shown, the tab bar switches between all four tabs, and the authentication placeholder can be opened and backed out of.
-5. Check an iPhone with a notch and the keyboard when future forms are introduced; the foundation already provides safe-area and keyboard-avoiding containers.
+There is no development machine — the only device available is an iPhone —
+so every build runs in CI and is opened from the phone.
 
-Expo Go is the fastest path for JavaScript-only development. A development build is required when future work adds native modules not included in Expo Go.
+**Primary path: the web preview.** `.github/workflows/web-preview.yml`
+builds the web target and deploys it to EAS Hosting on each push, and writes
+the URL to the run's Summary panel. Open it in Safari; no install, no Expo
+Go, no Apple account. It runs the real screens, the real navigation and the
+real dev Supabase project, so account creation, sign-in, adding a home and
+the maintenance views can all be exercised properly.
+
+What the web preview **cannot** tell us, and what therefore stays unverified
+until there is a TestFlight build: native deep links into an installed app
+(which is what the auth-email redirects ultimately rely on), push
+notifications, camera, and genuine iOS layout/keyboard behaviour. Treat a
+green web preview as "the logic is right", not "the app is shippable".
+
+**Why not Expo Go.** Opening a published EAS Update in Expo Go was tried
+first and proved unreliable: it repeatedly opened on a path matching no
+route, and the failures were hard to diagnose because a crash showed nothing
+at all. `.github/workflows/eas-update.yml` is retained but is now manual-only.
+It becomes the right tool again once a development or TestFlight build exists
+to receive updates.
+
+**Next step to unblock native testing:** enrol in the Apple Developer
+Program ($99/yr), then use EAS Build to produce a TestFlight build. That also
+unblocks the deep-link work and is required for store submission regardless.
+
+### Crash visibility
+
+`components/ErrorScreen.tsx` is wired in as Expo Router's `ErrorBoundary`
+from `app/_layout.tsx`, so a render failure anywhere shows a calm, readable
+screen with a "Try again" action instead of a blank one. It is built from
+plain React Native primitives on purpose — the provider it would otherwise
+depend on may be the thing that failed. In preview builds it also shows the
+underlying error (see `EXPO_PUBLIC_DEBUG_ERRORS`), which is what makes a
+failure diagnosable remotely.
 
 ## Expo and EAS
 
