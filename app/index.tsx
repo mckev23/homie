@@ -28,7 +28,7 @@ export default function WelcomeScreen() {
           <Text style={styles.eyebrow}>A calmer way to care for home</Text>
           <Text style={styles.title}>Let's take care of your home.</Text>
           <Text style={styles.body}>
-            Homie will help you stay ahead of maintenance, avoid costly surprises, and protect what matters most.
+            hōm will help you stay ahead of maintenance, avoid costly surprises, and protect what matters most.
           </Text>
         </View>
       </View>

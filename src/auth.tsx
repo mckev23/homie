@@ -1,8 +1,28 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import * as Linking from 'expo-linking';
 import type { Session, SignUpWithPasswordCredentials, User } from '@supabase/supabase-js';
 import { supabase } from '@/src/supabase';
 
 export type AuthError = { message: string };
+
+/*
+Where Supabase sends the user back after they tap a link in an auth email.
+Built from the app's `scheme` (homeapp), so it resolves to
+homeapp://reset-password in a standalone build and to the Expo Go dev URL
+during development. Both forms must be allow-listed in the Supabase
+dashboard under Authentication -> URL Configuration -> Redirect URLs, or
+Supabase silently falls back to the Site URL and the link won't open hōm.
+*/
+export const PASSWORD_RESET_REDIRECT = Linking.createURL('/reset-password');
+
+/*
+Where Supabase sends the user after they tap a signup confirmation email
+link. Unlike password reset, the app doesn't need to read anything off
+this link — Supabase confirms the email server-side before redirecting —
+so this just needs to land somewhere valid instead of falling back to the
+dashboard's default Site URL (which was left at localhost:3000).
+*/
+export const SIGNUP_CONFIRM_REDIRECT = Linking.createURL('/login');
 
 type AuthContextValue = {
   session: Session | null;
@@ -13,6 +33,12 @@ type AuthContextValue = {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
   resendConfirmation: (email: string) => Promise<{ error: AuthError | null }>;
+  /** Exchanges recovery tokens from a reset deep link for a live session. */
+  startPasswordRecovery: (accessToken: string, refreshToken: string) => Promise<{ error: AuthError | null }>;
+  /** Sets a new password for the currently-authenticated user. */
+  updatePassword: (newPassword: string) => Promise<{ error: AuthError | null }>;
+  /** Permanently deletes the signed-in user's account and all their data. */
+  deleteAccount: () => Promise<{ error: AuthError | null }>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -42,19 +68,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase?.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+    // Without config there is no session to restore. Resolve immediately so
+    // the app renders the signed-out state (which surfaces the missing
+    // config) instead of sitting on a blank loading screen forever.
+    if (!supabase) {
       setLoading(false);
-    });
+      return;
+    }
 
-    const sub = supabase?.auth.onAuthStateChange((_event, newSession) => {
-      (async () => {
-        setSession(newSession);
-      })();
+    supabase.auth
+      .getSession()
+      .then(({ data }) => setSession(data.session))
+      // A failed session lookup means "not signed in", not "hang forever".
+      .catch(() => setSession(null))
+      .finally(() => setLoading(false));
+
+    const sub = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
     });
 
     return () => {
-      sub?.data.subscription.unsubscribe();
+      sub.data.subscription.unsubscribe();
     };
   }, []);
 
@@ -67,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const credentials: SignUpWithPasswordCredentials = {
         email,
         password,
-        options: { data: { full_name: fullName } },
+        options: { data: { full_name: fullName }, emailRedirectTo: SIGNUP_CONFIRM_REDIRECT },
       };
       const { data, error } = await supabase.auth.signUp(credentials);
       if (error) {
@@ -89,15 +123,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     async resetPassword(email) {
       if (!supabase) return { error: { message: 'Service unavailable.' } };
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: PASSWORD_RESET_REDIRECT,
+      });
       if (error) {
         return { error: { message: translateError(error.code, error.message) } };
       }
       return { error: null };
     },
+    async startPasswordRecovery(accessToken, refreshToken) {
+      if (!supabase) return { error: { message: 'Service unavailable.' } };
+      const { error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+      if (error) {
+        return {
+          error: {
+            message: translateError(
+              error.code,
+              'This reset link is no longer valid. Please request a new one.'
+            ),
+          },
+        };
+      }
+      return { error: null };
+    },
+    async updatePassword(newPassword) {
+      if (!supabase) return { error: { message: 'Service unavailable.' } };
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        return { error: { message: translateError(error.code, error.message) } };
+      }
+      return { error: null };
+    },
+    async deleteAccount() {
+      if (!supabase) return { error: { message: 'Service unavailable.' } };
+      // Deletes auth.users row + cascades all hōm data. See migration
+      // 20260828120000_create_delete_current_user_function.sql.
+      const { error } = await supabase.rpc('delete_current_user');
+      if (error) {
+        return { error: { message: 'Could not delete your account. Please try again.' } };
+      }
+      // The account is gone; clear the local session so the app returns to
+      // the signed-out state. A failure here is not worth surfacing — the
+      // deletion already succeeded.
+      await supabase.auth.signOut().catch(() => undefined);
+      return { error: null };
+    },
     async resendConfirmation(email) {
       if (!supabase) return { error: { message: 'Service unavailable.' } };
-      const { error } = await supabase.auth.resend({ type: 'signup', email });
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: { emailRedirectTo: SIGNUP_CONFIRM_REDIRECT },
+      });
       if (error) {
         return { error: { message: translateError(error.code, error.message) } };
       }

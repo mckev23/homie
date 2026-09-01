@@ -2,7 +2,7 @@
 # Create profiles table
 
 ## Purpose
-Establishes the minimal foundational data structure for Homie. The profiles
+Establishes the minimal foundational data structure for hōm. The profiles
 table stores user display information linked to Supabase Auth identities. It
 does NOT duplicate authentication credentials or store passwords.
 

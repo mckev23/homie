@@ -1,5 +1,5 @@
 {
-  "name": "bolt-expo-starter",
+  "name": "homeapp",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "private": true,
@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@expo-google-fonts/quicksand": "^0.4.1",
     "@expo/vector-icons": "^15.0.2",
     "@lucide/lab": "^0.1.2",
     "@react-navigation/bottom-tabs": "^7.2.0",
@@ -29,6 +30,7 @@
     "expo-status-bar": "~3.0.8",
     "expo-symbols": "~1.0.7",
     "expo-system-ui": "~6.0.7",
+    "expo-updates": "~29.0.20",
     "expo-web-browser": "~15.0.7",
     "lucide-react-native": "^0.544.0",
     "react": "19.1.0",

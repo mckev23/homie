@@ -1,0 +1,121 @@
+# Publishes the app to EAS Update so it can be opened on a phone via a link,
+# with no computer involved. Runs in GitHub's cloud, not on anyone's machine.
+#
+# Trigger it either by pushing to the branch below, or manually from
+# GitHub -> Actions -> "Publish preview to phone" -> "Run workflow"
+# (that button works from a phone browser).
+#
+# Required repository secrets (Settings -> Secrets and variables -> Actions):
+#   EXPO_TOKEN                     - Expo access token (expo.dev -> Account settings)
+#   EXPO_PUBLIC_SUPABASE_URL       - hōm Dev project URL
+#   EXPO_PUBLIC_SUPABASE_ANON_KEY  - hōm Dev anon/publishable key (client-safe)
+
+name: Publish preview to phone
+
+# Manual only. Opening an EAS Update in Expo Go proved unreliable in
+# practice, so the web preview workflow is the primary testing path for now
+# and this no longer runs on every push. Kept because it is still the right
+# mechanism once there is a development or TestFlight build to receive
+# updates. Run it from the "Run workflow" button when that time comes.
+on:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: EAS Update (preview)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Creates the EAS project on first run and writes extra.eas.projectId
+      # into app.json. Safe to re-run once the project exists.
+      - name: Link EAS project
+        run: npx eas-cli@latest init --force --non-interactive
+
+      # Installs expo-updates and adds the updates/runtimeVersion config that
+      # `eas update` needs. Idempotent.
+      - name: Configure EAS Update
+        run: npx eas-cli@latest update:configure --non-interactive
+
+      # The commit message reaches the shell through the environment, never
+      # through ${{ }} interpolation. Interpolating it directly pastes raw
+      # text into the script, so a message containing backticks or quotes
+      # breaks the syntax (and would let anyone who can push a commit run
+      # commands here). Only the first line is used, capped well under the
+      # 1024-character limit `eas update --message` enforces.
+      - name: Publish update
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          SUMMARY=$(printf '%s' "$COMMIT_MESSAGE" | head -n 1 | cut -c1-200)
+          if [ -z "$SUMMARY" ]; then
+            SUMMARY="Manual publish"
+          fi
+          npx eas-cli@latest update \
+            --branch preview \
+            --message "$SUMMARY" \
+            --non-interactive 2>&1 | tee update-output.txt
+
+      # Surfaces the link on the workflow's summary page so it can be tapped
+      # from a phone without digging through raw logs.
+      - name: Show the link
+        if: always()
+        run: |
+          echo "## Open hōm on your phone" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f update-output.txt ]; then
+            LINK=$(grep -oE 'https://expo\.dev/[^ ]*update[^ ]*' update-output.txt | head -1 || true)
+            if [ -n "$LINK" ]; then
+              echo "**Tap this on your iPhone (Expo Go must be installed):**" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "$LINK" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "No link found in the output — check the 'Publish update' step's log." >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "<details><summary>Full output</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat update-output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "The publish step did not run. Check the steps above for the failure." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # `eas init` / `update:configure` edit app.json and package.json. Commit
+      # them back so the repo stays in sync and the next run is a no-op.
+      - name: Save any config changes back to the repo
+        if: success()
+        run: |
+          rm -f update-output.txt
+          if [ -n "$(git status --porcelain)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A
+            git commit -m "Configure EAS Update (automated)"
+            git push
+          else
+            echo "No config changes to commit."
+          fi

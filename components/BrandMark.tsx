@@ -1,30 +1,22 @@
-import { House } from 'lucide-react-native';
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, typography } from '@/src/theme';
+import { Image, StyleSheet, View } from 'react-native';
+import { Wordmark } from '@/components/Wordmark';
 
-export function BrandMark() {
+const ICON = require('@/assets/images/hom-icon.png');
+
+type BrandMarkProps = { width?: number };
+
+export function BrandMark({ width = 168 }: BrandMarkProps) {
+  const iconSize = width * 0.32;
+  const wordmarkSize = width * 0.24;
+
   return (
-    <View style={styles.container}>
-      <View style={styles.iconWrap}>
-        <House color={colors.secondary} size={24} strokeWidth={2} />
-      </View>
-      <Text style={styles.wordmark}>
-        homi<Text style={styles.accent}>e</Text>
-      </Text>
+    <View style={styles.row}>
+      <Image source={ICON} style={{ width: iconSize, height: iconSize }} resizeMode="contain" accessibilityLabel="hōm" />
+      <Wordmark size={wordmarkSize} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { alignItems: 'center', gap: 6 },
-  iconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  wordmark: { ...typography.heading, color: colors.secondary, letterSpacing: 1 },
-  accent: { color: colors.primary },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 });

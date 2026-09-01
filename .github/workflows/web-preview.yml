@@ -1,0 +1,91 @@
+# Builds hōm as a web page and hosts it, so it can be opened in Safari on a
+# phone with no computer, no Expo Go, and no app install involved.
+#
+# This is the primary testing path while there's no Apple Developer account.
+# It exercises the real app: the real screens, the real navigation, and the
+# real dev Supabase database. What it cannot exercise is native-only
+# behaviour (push notifications, camera, deep links into an installed app),
+# so those stay unverified until there's a TestFlight build.
+#
+# Trigger it by pushing to the branch below, or from
+# GitHub -> Actions -> "Publish web preview" -> "Run workflow"
+# (that button works from a phone browser).
+#
+# Required repository secrets (Settings -> Secrets and variables -> Actions):
+#   EXPO_TOKEN                     - Expo access token (expo.dev -> Account settings)
+#   EXPO_PUBLIC_SUPABASE_URL       - hōm Dev project URL
+#   EXPO_PUBLIC_SUPABASE_ANON_KEY  - hōm Dev anon/publishable key (client-safe)
+
+name: Publish web preview
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - claude/homie-cto-assessment-rwm1ls
+
+jobs:
+  deploy:
+    name: Web preview
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      # EXPO_PUBLIC_* values are baked into the bundle here, at build time.
+      # The anon key is designed to be public and is protected by row level
+      # security; this points at the dev project, never production.
+      # EXPO_PUBLIC_DEBUG_ERRORS makes the crash screen show the underlying
+      # error, which is the point of a preview build. Production must not set it.
+      - name: Build the web version
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          EXPO_PUBLIC_DEBUG_ERRORS: '1'
+        run: npx expo export --platform web
+
+      # --prod publishes to the project's stable URL, so the link stays the
+      # same on every deploy and can be bookmarked once.
+      - name: Deploy to EAS Hosting
+        run: npx eas-cli@latest deploy --prod --non-interactive 2>&1 | tee deploy-output.txt
+
+      - name: Show the link
+        if: always()
+        run: |
+          echo "## Open hōm in your phone browser" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f deploy-output.txt ]; then
+            LINK=$(grep -oE 'https://[a-zA-Z0-9._-]*expo\.app[^ ]*' deploy-output.txt | tail -1 || true)
+            if [ -n "$LINK" ]; then
+              echo "**Tap this on your iPhone — no app install needed:**" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "$LINK" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "No link found. Check the 'Deploy to EAS Hosting' step's log." >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "<details><summary>Full output</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat deploy-output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "The deploy step did not run. Check the steps above for the failure." >> $GITHUB_STEP_SUMMARY
+          fi

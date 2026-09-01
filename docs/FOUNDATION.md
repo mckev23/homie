@@ -1,4 +1,4 @@
-# Homie Foundation
+# hōm Foundation
 
 ## Status
 
@@ -6,7 +6,7 @@ Foundation status: **GREEN** — the engineering foundation is complete. Expo/Re
 
 ## Architecture
 
-Homie is a single Expo and React Native application written in TypeScript. Expo Router provides file-based navigation. The same source supports iOS, Android, and a secondary web smoke-preview target.
+hōm is a single Expo and React Native application written in TypeScript. Expo Router provides file-based navigation. The same source supports iOS, Android, and a secondary web smoke-preview target.
 
 Primary targets are iOS and Android. The browser preview is not a substitute for testing safe areas, touch behavior, keyboard handling, native navigation, or device performance.
 
@@ -43,9 +43,20 @@ The first route is a welcome screen. It links to an authentication placeholder a
 
 The mobile app initializes Supabase from the public project URL and anon key. The anon key is client-safe when protected by correct RLS policies. A service-role key must never be included in the mobile app. All signed-in data features must use Supabase Auth and owner-scoped RLS policies together in the same feature.
 
+**Two live projects exist and are schema-identical** (verified via the Supabase MCP connector):
+
+| Environment | Project name | Project ref |
+|---|---|---|
+| Development | Homie Dev | `mhdlhmelgdxdovpwigny` |
+| Production | Homie Production | `eqhwvpjscarwhfstecjv` |
+
+Both are on Postgres 17. Every migration in `supabase/migrations/` has been applied to both via `mcp__supabase__apply_migration`, and the Supabase security advisor is clean on both except one platform-internal function (`public.rls_auto_enable`) that hōm's migrations did not create and should not modify.
+
+Project display names above are still "Homie Dev"/"Homie Production" in the Supabase dashboard — purely cosmetic, not yet renamed (see `BRANDING.md`).
+
 ### Database foundation
 
-A minimal `profiles` table has been created and is the only durable table in this phase. It stores display information for each authenticated user and does not duplicate authentication credentials or store passwords.
+A minimal `profiles` table stores display information for each authenticated user and does not duplicate authentication credentials or store passwords.
 
 | Column | Type | Description |
 |---|---|---|
@@ -54,26 +65,62 @@ A minimal `profiles` table has been created and is the only durable table in thi
 | `created_at` | timestamptz | Defaults to `now()`. |
 | `updated_at` | timestamptz | Defaults to `now()`. Auto-updated via trigger. |
 
+A `homes` table (schema in `supabase/migrations/20260826180000_create_homes_table.sql`) is live on both projects, empty, ready for the "add a home" feature:
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | uuid, PK | `gen_random_uuid()`. |
+| `user_id` | uuid | Owner. FK to `auth.users(id)` with `ON DELETE CASCADE`. |
+| `nickname` | text | Defaults to `'My Home'`. |
+| `address` | text, nullable | Single free-text line — low friction over structured fields. |
+| `postal_code` | text, nullable | For future climate-aware guidance. |
+| `year_built` | integer, nullable | For future age-based maintenance guidance. |
+| `created_at` / `updated_at` | timestamptz | Same pattern as `profiles`. |
+
+A `home_systems` table (`20260827120000_create_home_systems_table.sql`) records which of a fixed, small set of systems a home has:
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | uuid, PK | `gen_random_uuid()`. |
+| `home_id` | uuid | FK to `homes(id)` with `ON DELETE CASCADE`. |
+| `user_id` | uuid | Denormalized owner reference — same pattern as `homes` — so RLS policies check `auth.uid() = user_id` directly instead of joining through `homes`. |
+| `system_type` | text | `CHECK`-constrained to `'heating' \| 'cooling' \| 'water_heater' \| 'electrical_panel' \| 'sewer_septic'`. |
+| `created_at` / `updated_at` | timestamptz | Same pattern as `profiles`. |
+
+Unique on `(home_id, system_type)` — toggling a system on twice is a no-op, not a duplicate row.
+
+A `maintenance_tasks` table (`20260827130000_create_maintenance_tasks_table.sql`) holds the "simple maintenance schedule" (MVP sequence step 4):
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | uuid, PK | `gen_random_uuid()`. |
+| `home_id` | uuid | FK to `homes(id)` with `ON DELETE CASCADE`. |
+| `user_id` | uuid | Denormalized owner reference, same reasoning as `home_systems`. |
+| `system_type` | text, nullable | Informational link back to the system category this task came from. No FK to `home_systems` — removing a system should not silently delete task history. |
+| `title` | text | e.g. "Replace furnace filter". |
+| `frequency_months` | integer | A recurrence cadence, not a predicted date — matches the "no false precision" product rule. |
+| `last_completed_at` | timestamptz, nullable | Null means never completed. |
+| `created_at` / `updated_at` | timestamptz | Same pattern as `profiles`. |
+
+Unique on `(home_id, title)` so re-saving systems seeds via `ON CONFLICT DO NOTHING` and never resets a task's completion history. Seeded from a small static best-practice template per system type in `src/maintenance.ts`, not a dynamic recommendation engine.
+
 ### Row Level Security
 
-RLS is enabled on `profiles`. Four owner-scoped policies (one per CRUD verb) ensure each authenticated user can only access their own profile row:
+RLS is enabled on `profiles`, `homes`, `home_systems`, and `maintenance_tasks`. Four owner-scoped policies each (one per CRUD verb):
 
-- `select_own_profile` — `USING (auth.uid() = id)`
-- `insert_own_profile` — `WITH CHECK (auth.uid() = id)`
-- `update_own_profile` — `USING (auth.uid() = id) WITH CHECK (auth.uid() = id)`
-- `delete_own_profile` — `USING (auth.uid() = id)`
+- `profiles`: `auth.uid() = id`
+- `homes`, `home_systems`, `maintenance_tasks`: `auth.uid() = user_id`
 
-All policies are scoped `TO authenticated`. No public or anon access. No broad `USING(true)` policies.
+All policies are scoped `TO authenticated`. No public or anon access. No broad `USING(true)` policies. A follow-up migration additionally revoked public/anon/authenticated `EXECUTE` on `handle_new_user()` — the security advisor flagged it as callable as an RPC endpoint; it's a `SECURITY DEFINER` trigger function that would error if invoked outside trigger context, but there was no reason to leave that surface open.
 
-### Future relationship: User → Profile → Home
-
-The intended data relationship for the next feature sequence is:
+### Relationship: User → Profile → Home → Systems / Maintenance
 
 ```
-auth.users (Supabase Auth) → profiles (current) → homes (future)
+auth.users (Supabase Auth) → profiles → homes → home_systems
+                                              → maintenance_tasks
 ```
 
-The `homes` table will be created when the home creation feature is built. It will reference `auth.users(id)` and have its own owner-scoped RLS policies. Maintenance, project, and other product tables will follow the same pattern.
+Maintenance and project tables will follow the same owner-scoped pattern once the "add a home" feature is built and validated.
 
 ### Supabase client configuration
 
@@ -124,24 +171,69 @@ The migration history is visible via `mcp__supabase__list_migrations`. To recrea
 
 - `EXPO_PUBLIC_SUPABASE_URL`: public Supabase project URL; client-safe.
 - `EXPO_PUBLIC_SUPABASE_ANON_KEY`: public Supabase anon key; client-safe, but never substitute a service-role key.
+- `EXPO_PUBLIC_DEBUG_ERRORS`: optional. Set to `1` to let the crash screen
+  show the underlying error text. Preview builds set it; **production must
+  never set it**, so real users only ever see plain language.
 
 The local `.env` file is ignored by Git and contains real values for development only. Secret values, if required by future server-side Edge Functions, must remain server-side and must not be copied into Expo public variables.
 
-## Mobile testing procedure
+## Testing procedure
 
-1. Install Expo Go on the physical iPhone.
-2. Open the Homie project in Bolt and use the Device Preview control to generate the Expo QR code.
-3. Scan the QR code from Expo Go while the iPhone and development environment can reach the same project connection.
-4. Confirm the welcome screen opens, the foundation status is shown, the tab bar switches between all four tabs, and the authentication placeholder can be opened and backed out of.
-5. Check an iPhone with a notch and the keyboard when future forms are introduced; the foundation already provides safe-area and keyboard-avoiding containers.
+There is no development machine — the only device available is an iPhone —
+so every build runs in CI and is opened from the phone.
 
-Expo Go is the fastest path for JavaScript-only development. A development build is required when future work adds native modules not included in Expo Go.
+**Primary path: the web preview.** `.github/workflows/web-preview.yml`
+builds the web target and deploys it to EAS Hosting on each push, and writes
+the URL to the run's Summary panel. Open it in Safari; no install, no Expo
+Go, no Apple account. It runs the real screens, the real navigation and the
+real dev Supabase project, so account creation, sign-in, adding a home and
+the maintenance views can all be exercised properly.
+
+What the web preview **cannot** tell us, and what therefore stays unverified
+until there is a TestFlight build: native deep links into an installed app
+(which is what the auth-email redirects ultimately rely on), push
+notifications, camera, and genuine iOS layout/keyboard behaviour. Treat a
+green web preview as "the logic is right", not "the app is shippable".
+
+**Why not Expo Go.** Opening a published EAS Update in Expo Go was tried
+first and proved unreliable: it repeatedly opened on a path matching no
+route, and the failures were hard to diagnose because a crash showed nothing
+at all. `.github/workflows/eas-update.yml` is retained but is now manual-only.
+It becomes the right tool again once a development or TestFlight build exists
+to receive updates.
+
+**Next step to unblock native testing:** enrol in the Apple Developer
+Program ($99/yr), then use EAS Build to produce a TestFlight build. That also
+unblocks the deep-link work and is required for store submission regardless.
+
+### Crash visibility
+
+`components/ErrorScreen.tsx` is wired in as Expo Router's `ErrorBoundary`
+from `app/_layout.tsx`, so a render failure anywhere shows a calm, readable
+screen with a "Try again" action instead of a blank one. It is built from
+plain React Native primitives on purpose — the provider it would otherwise
+depend on may be the thing that failed. In preview builds it also shows the
+underlying error (see `EXPO_PUBLIC_DEBUG_ERRORS`), which is what makes a
+failure diagnosable remotely.
 
 ## Expo and EAS
 
-`app.json` identifies the app as Homie with the `homie` URL scheme, portrait orientation, iOS bundle identifier `com.homie.app`, and Android package `com.homie.app`. These identifiers should be treated as permanent once a store build exists.
+`app.json`'s display `name` is "hōm" (consumer-facing; the full name/text rebrand is complete — see `BRANDING.md`). Its technical identifiers — `slug` (`homeapp`), URL `scheme` (`homeapp`), iOS bundle identifier and Android package (`com.homeapp.mobile`) — were deliberately chosen as a brand-neutral internal codename, decoupled from both "Homie" and "hōm", specifically so a future brand name change never touches them again. The bundle ID was originally `com.mckev23.homeapp` (the developer's GitHub handle) but was changed to the fully generic `com.homeapp.mobile` — a bundle ID ships inside the compiled binary and is inspectable by anyone (App Store tooling, decompilation, third-party app-intelligence sites), so it shouldn't carry anything tied to a real person, even a handle already public elsewhere. These identifiers should be treated as permanent once a store build exists.
 
-`eas.json` includes development, preview, and production profiles. Before building outside Bolt, use an Expo account and EAS CLI, then run Expo's project diagnostics. EAS manages native signing credentials during the build flow.
+`assets/images/icon.png` (1024×1024) and `assets/images/favicon.png` are the final "hōm" stones mark (see `BRANDING.md`), upscaled from a 610×600px source — fine for dev/internal builds, needs a proper high-res/vector export before any App Store or Play Store submission.
+
+The splash screen is configured via the `expo-splash-screen` config plugin in `app.json`'s `plugins` array — the stones mark (`assets/images/hom-icon.png`) centered on the `#FBF3EA` cream background.
+
+`eas.json` includes development, preview, and production build profiles, each with an explicit `"environment"` field of the same name. This maps each profile to an EAS Environment Variables scope so development/preview and production builds can point at different Supabase projects without editing `eas.json` or committing project-specific values. Set the actual values with `eas env:create` (or the EAS dashboard) per environment — see the Supabase connection steps below. Before building outside Bolt, use an Expo account and EAS CLI, then run Expo's project diagnostics. EAS manages native signing credentials during the build flow.
+
+## Connecting Supabase (dev and production)
+
+**Status: connected.** Two Supabase projects exist — `Homie Dev` (`mhdlhmelgdxdovpwigny`) and `Homie Production` (`eqhwvpjscarwhfstecjv`) — display names not yet renamed (cosmetic only, see `BRANDING.md`) — and both have the full migration history applied and verified (see Supabase architecture above). A "Supabase" connector is authorized for this Claude Code account/org, so future sessions can run `apply_migration`, `list_tables`, `get_advisors`, etc. directly against either project by its ref.
+
+Remaining wiring, not yet done:
+
+- **Local development**: copy `.env.example` to `.env` and fill in the **dev** project's URL/anon key (Project Settings → API, or `get_project_url` / `get_publishable_keys` via the MCP connector). `.env` is gitignored and never committed. Never point local development at the production project.
+- **EAS builds**: run `eas env:create` for each of the `development`, `preview`, and `production` environments (these map to `eas.json`'s `"environment"` fields) with `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` — development/preview pointing at the dev project, production at the prod project. This is a local/CI action requiring an authenticated `eas` CLI session; it hasn't been run yet.
 
 ## iOS path
 
@@ -155,7 +247,7 @@ Use Expo Go for early testing. For a shareable Android build, use an EAS preview
 
 A local Git repository has been initialized with a baseline commit containing the full foundation. The `.gitignore` excludes `.env`, `node_modules/`, `.expo/`, `dist/`, `web-build/`, and other build artifacts. The `.env.example` file with placeholder-only values is committed.
 
-**GitHub connection status**: Connected. The repository `mckev23/homie` on GitHub serves as the permanent source-control backup. The full foundation has been pushed to the `main` branch.
+**GitHub connection status**: Connected. The repository `mckev23/homie` on GitHub (name not yet renamed, cosmetic only, see `BRANDING.md`) serves as the permanent source-control backup. The full foundation has been pushed to the `main` branch.
 
 **Git safety rules:**
 
@@ -166,11 +258,75 @@ A local Git repository has been initialized with a baseline commit containing th
 - Source code, documentation, and configuration files are committed.
 - The working tree should be clean after each completed feature.
 
+## Auth deep links (password reset)
+
+`resetPasswordForEmail` sends the user back into the app via
+`PASSWORD_RESET_REDIRECT` in `src/auth.tsx`, built with
+`Linking.createURL('/reset-password')`. That resolves to
+`homeapp://reset-password` in a standalone build, and to an
+`exp://…/--/reset-password` URL under Expo Go.
+
+`app/reset-password.tsx` reads the tokens off the incoming link
+(`src/authLinks.ts` parses both the URL fragment and the query string, so
+it works under either the implicit or PKCE flow), exchanges them for a
+session via `setSession`, then calls `updateUser` to set the new password.
+Expired or already-used links are detected and routed back to
+"request a new link" rather than failing silently.
+
+**Required dashboard configuration — the flow does not work without it.**
+In each Supabase project, under Authentication → URL Configuration →
+Redirect URLs, allow-list the redirect targets. Supabase only honours a
+`redirectTo` value that matches the allow-list; otherwise it silently
+falls back to the Site URL and the email link will not open hōm:
+
+- `homeapp://**` — standalone / TestFlight / store builds
+- the `exp://` URL printed by `npx expo start` — Expo Go development only
+  (it changes with the host machine's IP, so re-add it when it changes)
+
+Signup confirmation uses the same mechanism via `SIGNUP_CONFIRM_REDIRECT`
+(`Linking.createURL('/login')`), passed as `emailRedirectTo` to both
+`signUp` and `resend`. Unlike password reset, the app doesn't need to read
+anything off this link — Supabase confirms the email server-side before
+redirecting — so a redirect that doesn't match the allow-list is only a
+cosmetic problem (the browser shows an unreachable-page error), not a
+broken signup: the account is confirmed either way.
+
+**Known gap:** when testing via a published EAS Update opened in Expo Go
+(no local dev server, so no `npx expo start` URL to allow-list), the
+`exp://` URL that `Linking.createURL` produces is generated by Expo's own
+redirect service for that update and won't match a locally-printed dev
+URL. Until that's allow-listed too, expect the confirmation email link to
+land on an "unreachable" error page during this kind of testing — safe to
+ignore; just switch back to the app and sign in. Standalone/TestFlight
+builds are unaffected since those match `homeapp://**`.
+
+## Account deletion
+
+`delete_current_user()` (migration
+`20260828120000_create_delete_current_user_function.sql`) is a
+`SECURITY DEFINER` function that deletes the caller's own `auth.users` row.
+Every hōm table cascades from `auth.users(id)`, so one statement removes
+the profile, home, systems, and maintenance tasks. It takes no parameters
+and operates only on `auth.uid()`, so a caller cannot target another
+account. `EXECUTE` is revoked from `PUBLIC`/`anon` and granted only to
+`authenticated`.
+
+This exists because App Store Guideline 5.1.1(v) requires in-app account
+deletion for any app offering account creation. Deletion is a hard delete
+by design (see the migration's comment for the rationale) and is behind a
+two-step confirmation in `app/(tabs)/settings.tsx`.
+
 ## Known limitations
 
-- Authentication and account creation are not implemented (architecture is prepared).
-- The `profiles` table exists but no auth UI is built yet to create or populate it.
-- The Supabase client does not yet persist sessions (will be enabled with the auth feature).
+- Email confirmation is confirmed **on** for both projects (verified by the PM directly in each dashboard).
+- `delete_current_user()` migration is written but **not yet applied** — the Supabase MCP connector was unavailable in the session that authored it. Apply to both projects via `mcp__supabase__apply_migration` before account deletion will work.
+- The password-reset redirect URLs have **not yet been allow-listed** in either Supabase project (see "Auth deep links" above). Until that is done, reset emails will not open the app.
+- Neither the password reset nor the account deletion flow has been exercised on a real device — both are typecheck-clean only.
+- `eas env:create` has not been run — EAS builds don't yet have Supabase credentials wired in (see "Connecting Supabase" above). Local `.env` also still needs to be created per-machine (gitignored, never committed).
+- App icon and favicon are now the final "hōm" stones mark (see `BRANDING.md`). Source art is only 610×600px — fine for dev/internal builds, needs a proper high-res/vector export before real store submission.
+- No crash/error reporting is wired up; `src/logger.ts` only logs in `__DEV__`.
+- No CI (lint/typecheck) runs on push.
+- `npm audit` reports vulnerabilities, all transitive through Expo's native-build tooling (`xcode`/`@expo/config-plugins`, used only by `prebuild`/EAS builds, not shipped in the app bundle). Fixing requires a breaking Expo major-version bump — deliberately deferred, not a silent risk.
 - The browser preview cannot validate native iPhone behavior.
 - A physical-device check has not been performed by this environment.
 - App store signing, TestFlight, and Play Console setup require the owner's developer accounts.
